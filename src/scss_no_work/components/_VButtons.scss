@@ -1,0 +1,36 @@
+//
+// global
+
+.v-btn-group .v-btn {
+    height: inherit !important;
+}
+
+.v-btn-group {
+    border-color: rgb(var(--v-theme-borderColor)) !important;
+}
+
+.v-btn--size-large{
+    font-size: 14px;
+}
+
+.v-btn{
+    text-transform: capitalize;
+    letter-spacing: 0;
+    border-radius: 8px;
+
+    &.v-btn--variant-elevated{
+        box-shadow: none !important;
+    }
+    &.v-btn--icon{
+        border-radius: 50%;
+    }
+}
+
+.btn-white{
+    background-color: rgb(var(--v-theme-surface)) !important;
+    padding:10px 15px;
+    &:hover{
+        background-color: rgb(var(--v-theme-primary)) !important; 
+        color: #fff !important;
+    }
+}
