@@ -19,6 +19,7 @@ declare module 'vue-router/auto-routes' {
    */
   export interface RouteNamedMap {
     '/': RouteRecordInfo<'/', '/', Record<never, never>, Record<never, never>>,
+    '/Activity-Report/': RouteRecordInfo<'/Activity-Report/', '/Activity-Report', Record<never, never>, Record<never, never>>,
     '/Add/': RouteRecordInfo<'/Add/', '/Add', Record<never, never>, Record<never, never>>,
     '/Admin-Dashboard/': RouteRecordInfo<'/Admin-Dashboard/', '/Admin-Dashboard', Record<never, never>, Record<never, never>>,
     '/Calendar/': RouteRecordInfo<'/Calendar/', '/Calendar', Record<never, never>, Record<never, never>>,
@@ -38,5 +39,6 @@ declare module 'vue-router/auto-routes' {
     '/Student-Calendar/': RouteRecordInfo<'/Student-Calendar/', '/Student-Calendar', Record<never, never>, Record<never, never>>,
     '/Students/': RouteRecordInfo<'/Students/', '/Students', Record<never, never>, Record<never, never>>,
     '/Virtual-Office/': RouteRecordInfo<'/Virtual-Office/', '/Virtual-Office', Record<never, never>, Record<never, never>>,
+    '/Welcome/': RouteRecordInfo<'/Welcome/', '/Welcome', Record<never, never>, Record<never, never>>,
   }
 }

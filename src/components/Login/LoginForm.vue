@@ -1,27 +1,33 @@
 <template>
-    <v-container fluid class="login-screen d-flex align-center justify-center">
-        <v-card class="pa-8 login-card" width="380" elevation="4">
-            <div class="mb-6 d-flex logo-wrapper">
-                <v-img src="@/assets/Logos/ant.png" alt="CRM Logo" max-width="100" max-height="100" contain
-                    class="logo-img" />
-                <h2 class="crm-title text-white">Flowly</h2>
-            </div>
-            <p class="crm-subtitle"><strong class="highlight">CRM</strong> Empowering your workflow</p>
 
-            <v-form @submit.prevent="handleLogin" class="mt-6">
-                <v-text-field v-model="email" label="Email" variant="underlined" density="comfortable"
+
+    <v-container fluid class="login-screen d-flex align-center justify-center">
+        <v-card class="login-card pa-8" width="500">
+            <!-- Logo + Título -->
+
+            <div class="text-center mb-1">
+                <v-img src="@/assets/logos/voutLogoBlanco.png" alt="V-Out Logo" contain class="mx-auto mb-2" />
+
+            </div>
+
+
+            <!-- Formulario -->
+            <v-form @submit.prevent="handleLogin">
+                <v-text-field v-model="email" label="Username" variant="underlined" density="comfortable"
                     class="mb-4 minimal-input" hide-details />
                 <v-text-field v-model="password" :type="showPassword ? 'text' : 'password'" label="Password"
                     variant="underlined" density="comfortable" class="mb-6 minimal-input" hide-details
                     :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                     @click:append-inner="showPassword = !showPassword" />
 
-                <v-btn type="submit" color="#2d2d2d" class="custom-btn" block rounded>
+                <v-btn type="submit" class="custom-btn" block rounded>
                     Sign In
                 </v-btn>
             </v-form>
         </v-card>
     </v-container>
+
+
 </template>
 
 <script setup lang="ts">
@@ -36,118 +42,85 @@ const showPassword = ref(false)
 const handleLogin = () => {
     if (email.value === 'admin' && password.value === '1234') {
         //router.push('/dashboard')
-        router.push('/leads')
+        router.push('/welcome')
     } else {
         alert('Invalid credentials')
     }
 }
 </script>
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap');
-
-/* Fuerza pantalla completa y fondo oscuro, sin depender del padre */
 .login-screen {
     min-height: 100vh;
-    /* clave */
-    background-color: #121212;
     padding: 0;
-    /* elimina padding lateral del container */
+    position: relative;
+    overflow: hidden;
+    background-color: #ffffff;
+    /* Fondo blanco */
+
+    /* Fondo con imagen */
+    background-image: url('@/assets/Logos/fondologin.jpg');
+    /* ruta relativa desde tu proyecto */
+    background-size: cover;
+    /* ajusta la imagen para cubrir todo el contenedor */
+    background-position: center;
+    /* centra la imagen */
+    background-repeat: no-repeat;
+    /* evita repetir la imagen */
 }
 
-/* --- tus estilos tal cual --- */
+/* Eliminamos el fondo diagonal */
+.login-screen::before {
+    content: "";
+    display: none;
+    /* quitamos el gradiente anterior */
+}
+
+/* Card azul translúcido con efecto de luz */
+
 .login-card {
-    background-color: #1f1f1f;
-    border-radius: 16px;
+    position: relative;
+    z-index: 1;
+
+    background:
+        linear-gradient(135deg, #001a26 0%, #004f75 50%, #0099cc 100%);
+
+    backdrop-filter: blur(15px);
+    border-radius: 15px;
+
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    
 }
 
+
+/* Inputs */
 .minimal-input .v-field {
     background-color: transparent !important;
-    border-bottom: 1px solid #555;
     border-radius: 0;
-}
-
-.minimal-input .v-label {
-    color: white !important;
 }
 
 .minimal-input input {
     color: white !important;
 }
 
-/* Label flotante de Vuetify 3 */
-.minimal-input .v-field-label {
-  color: white !important;
-}
-
-.minimal-input .v-icon {
-  color: white !important;
-}
-
-/* Texto que escribe el usuario + caret */
-.minimal-input :deep(.v-field__input) {
-  color: #fff !important;
-  caret-color: #fff !important;
-}
-
-/* Label flotante (Vuetify 3) */
 .minimal-input :deep(.v-field-label) {
-  color: #fff !important;
+    color: #ccc !important;
 }
 
-/* Ícono del ojo */
 .minimal-input :deep(.v-icon) {
-  color: #fff !important;
-}
-
-/* Línea inferior del "underlined" (más visible) */
-.minimal-input :deep(.v-field__outline),
-.minimal-input :deep(.v-field__overlay) {
-  border-color: rgba(255,255,255,0.7) !important;
-  background: transparent !important;
-}
-
-.v-input__control {
     color: white !important;
 }
 
+/* Botón */
 .custom-btn {
-    color: white;
-    background-color: #2d2d2d;
-    transition: background-color .3s ease;
+    background-color: transparent !important;  
+    color: white !important;                
+    border: 2px solid #F28C2B !important;     
+    font-weight: 600;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .custom-btn:hover {
-    background-color: #3a3a3a;
-}
-
-.logo-wrapper {
-    display: flex;
-    align-items: flex-end;
-    gap: 2px;
-}
-
-.logo-img {
-    display: inline-block;
-    vertical-align: bottom;
-}
-
-.crm-title {
-    font-size: 4.5rem;
-    font-weight: 700;
-    line-height: 1;
-    margin-bottom: 5.5px;
-    font-family: 'Space Grotesk', sans-serif;
-}
-
-.crm-subtitle {
-    font-size: .9rem;
-    color: #b0b0b0;
-    margin-top: -30px;
-    margin-left: 10px;
-}
-
-.highlight {
-    color: #fff;
-    font-weight: 600;
+    background-color: #F28C2B !important;
 }
 </style>
