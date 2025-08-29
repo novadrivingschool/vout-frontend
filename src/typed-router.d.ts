@@ -19,14 +19,17 @@ declare module 'vue-router/auto-routes' {
    */
   export interface RouteNamedMap {
     '/': RouteRecordInfo<'/', '/', Record<never, never>, Record<never, never>>,
+    '/Activities/': RouteRecordInfo<'/Activities/', '/Activities', Record<never, never>, Record<never, never>>,
     '/Activity-Report/': RouteRecordInfo<'/Activity-Report/', '/Activity-Report', Record<never, never>, Record<never, never>>,
     '/Add/': RouteRecordInfo<'/Add/', '/Add', Record<never, never>, Record<never, never>>,
     '/Admin-Dashboard/': RouteRecordInfo<'/Admin-Dashboard/', '/Admin-Dashboard', Record<never, never>, Record<never, never>>,
     '/Calendar/': RouteRecordInfo<'/Calendar/', '/Calendar', Record<never, never>, Record<never, never>>,
     '/Clients/': RouteRecordInfo<'/Clients/', '/Clients', Record<never, never>, Record<never, never>>,
     '/Contacts/': RouteRecordInfo<'/Contacts/', '/Contacts', Record<never, never>, Record<never, never>>,
+    '/Customers/': RouteRecordInfo<'/Customers/', '/Customers', Record<never, never>, Record<never, never>>,
     '/Dashboard/': RouteRecordInfo<'/Dashboard/', '/Dashboard', Record<never, never>, Record<never, never>>,
     '/Deals/': RouteRecordInfo<'/Deals/', '/Deals', Record<never, never>, Record<never, never>>,
+    '/Departments/': RouteRecordInfo<'/Departments/', '/Departments', Record<never, never>, Record<never, never>>,
     '/Instructor-Calendar/': RouteRecordInfo<'/Instructor-Calendar/', '/Instructor-Calendar', Record<never, never>, Record<never, never>>,
     '/Instructors/': RouteRecordInfo<'/Instructors/', '/Instructors', Record<never, never>, Record<never, never>>,
     '/Leads/': RouteRecordInfo<'/Leads/', '/Leads', Record<never, never>, Record<never, never>>,

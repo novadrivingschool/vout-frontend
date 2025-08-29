@@ -13,6 +13,8 @@ declare module 'vue' {
     Calendar: typeof import('./components/Calendar/Calendar.vue')['default']
     Form: typeof import('./components/Form/Form.vue')['default']
     FullCalender: typeof import('./components/Calendar/FullCalender.vue')['default']
+    GenericFormDialog: typeof import('./components/GenericFormDialog/GenericFormDialog.vue')['default']
+    GenericTable: typeof import('./components/GenericTable/GenericTable.vue')['default']
     LoginForm: typeof import('./components/Login/LoginForm.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

@@ -13,10 +13,10 @@
 
             <!-- Formulario -->
             <v-form @submit.prevent="handleLogin">
-                <v-text-field v-model="email" label="Username" variant="underlined" density="comfortable"
-                    class="mb-4 minimal-input" hide-details />
+                <v-text-field v-model="email" label="Username"  variant="underlined" density="comfortable"
+                     style="color: white" class="mb-4 minimal-input" hide-details />
                 <v-text-field v-model="password" :type="showPassword ? 'text' : 'password'" label="Password"
-                    variant="underlined" density="comfortable" class="mb-6 minimal-input" hide-details
+                    variant="underlined" density="comfortable" style="color: white" class="mb-6 minimal-input " hide-details
                     :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                     @click:append-inner="showPassword = !showPassword" />
 
@@ -58,7 +58,7 @@ const handleLogin = () => {
     /* Fondo blanco */
 
     /* Fondo con imagen */
-    background-image: url('@/assets/Logos/fondologin.jpg');
+    background-image: url('@/assets/Logos/FondoLogin.png');
     /* ruta relativa desde tu proyecto */
     background-size: cover;
     /* ajusta la imagen para cubrir todo el contenedor */
@@ -106,6 +106,7 @@ const handleLogin = () => {
 .minimal-input :deep(.v-field-label) {
     color: #ccc !important;
 }
+
 
 .minimal-input :deep(.v-icon) {
     color: white !important;
