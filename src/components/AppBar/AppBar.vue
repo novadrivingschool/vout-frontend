@@ -1,6 +1,6 @@
 <template>
 
-  <v-app-bar app fixed class="custom-appbar" dark>
+  <v-app-bar app fixed class="custom-appbar" dark height="75">
     <!-- Ícono sin margen extra -->
     <v-app-bar-nav-icon color="white" @click="drawerOpen = !drawerOpen" class="tight-navicon" />
 
@@ -8,7 +8,7 @@
 
     <!-- Logo pegado al ícono -->
     <v-toolbar-title>
-      <v-img src="@/assets/Logos/voutLogoBlanco.png" alt="Logo" max-width="190" class="cursor-pointer"
+      <v-img src="@/assets/Logos/voutLogoBlanco.png" alt="Logo" max-width="220" class="cursor-pointer"
         @click="$router.push('/welcome')" />
     </v-toolbar-title>
 
@@ -17,11 +17,11 @@
 
     <!-- BOTÓN DE TEMA -->
     <v-btn icon @click="isDarkTheme = !isDarkTheme" title="Toggle theme">
-      <v-icon color="white">{{ isDarkTheme ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}</v-icon>
+      <v-icon color="white"  size="30" >{{ isDarkTheme ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}</v-icon>
     </v-btn>
 
     <v-btn icon @click="handleLogout" title="Log out">
-      <v-icon color="white">mdi-logout</v-icon><!-- v-if="!isLoginPage"  -->
+      <v-icon color="white"  size="30">mdi-logout</v-icon><!-- v-if="!isLoginPage"  -->
     </v-btn>
   </v-app-bar>
 
@@ -60,14 +60,7 @@
           :prepend-icon="sub.icon" link />
       </v-list-group>
 
-      <!-- Activities -->
-      <v-list-group v-model="groupStates.Activities">
-        <template #activator="{ props }">
-          <v-list-item v-bind="props" prepend-icon="mdi-calendar-check" title="Activities" dense style="min-height:35px;" />
-        </template>
-        <v-list-item v-for="sub in Activities" :key="`table-${sub.route}`" :to="sub.route" :title="sub.title"
-          :prepend-icon="sub.icon" link />
-      </v-list-group>
+
 
     </v-list>
   </v-navigation-drawer>
@@ -118,7 +111,7 @@ const groupStates = ref({
   activityReport: true,
   Customers: true,
   Departments: true,
-  Activities: true,
+
 })
 
 
@@ -135,9 +128,7 @@ const Departments = [
   { title: 'Departments', icon: 'mdi-briefcase', route: '/departments' }
 ]
 
-const Activities = [
-  { title: 'Activities', icon: 'mdi-clipboard-text', route: '/activities' }
-]
+
 
 const handleLogout = () => {
   localStorage.removeItem('auth')

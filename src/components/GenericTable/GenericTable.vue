@@ -2,7 +2,7 @@
   <v-data-table
     :headers="props.headers"
     :items="props.items"
-    :items-per-page="perPage"
+    :items-per-page="props.perPage"
     class="elevation-0"
     density="comfortable"
     :footer-props="{ 'items-per-page-options': [5, 10, { text: 'All', value: -1 }] }"
@@ -11,33 +11,41 @@
     @update:items-per-page="setPerPage"
   >
     <template #item.actions="{ item }">
-      <v-icon small class="mr-2" color="blue" @click="$emit('edit', item)">
+      <v-icon small class="mr-2" color="blue" @click="emit('edit', item)">
         mdi-pencil
       </v-icon>
-      <v-icon small color="red" @click="$emit('delete', item.id)">
+      <v-icon small color="red" @click="emit('delete', item?.uuid)">
         mdi-delete
       </v-icon>
     </template>
   </v-data-table>
 </template>
 
+<script setup lang="ts">
+type Align = 'start' | 'end' | 'center'
 
-<script setup>
-import { ref, watch } from 'vue'
+interface Header {
+  title: string
+  key: string
+  sortable?: boolean
+  align?: Align
+  width?: string | number
+}
 
-const props = defineProps({
-  headers: { type: Array, required: true },
-  items: { type: Array, required: true },
-  perPage: { type: Number, required: true },
-})
+// Tipo base que asegura que cada fila tenga id opcional
+type RowBase = { uuid?: string  }
 
-const emit = defineEmits(['edit', 'delete', 'update:perPage'])
+const props = defineProps<{
+  headers: Header[]
+  items: RowBase[]   // puede ser Department[], Customer[], etc.
+  perPage: number
+}>()
 
-// Ref local para controlar la paginación
-const perPageLocal = ref(5) // inicializa en 5 registros por página
+const emit = defineEmits<{
+  (e: 'edit', item: RowBase): void
+  (e: 'delete', uuid: RowBase['uuid']): void
+  (e: 'update:perPage', value: number): void
+}>()
 
-const setPerPage = (n) => emit('update:perPage', n)
-
-// Emitimos al padre cada vez que cambie perPageLocal
-watch(perPageLocal, (val) => emit('update:perPage', val))
+const setPerPage = (n: number) => emit('update:perPage', n)
 </script>

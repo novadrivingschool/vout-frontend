@@ -1,38 +1,28 @@
 <template>
    <v-container>
       <v-card class="pa-4 elevation-2 rounded">
-         <!-- Encabezado -->
+         <!-- Header -->
          <v-row align="center" justify="space-between" class="mb-2">
-            <h2 class="text-tittle-2 mb-0 ma-15">Costumers</h2>
+            <h2 class="text-tittle-2 mb-0 ma-15 ml-7">Customers</h2>
             <v-btn color="orange darken-2 mb-0 ma-15" dark small @click="openDialog">
-               ADD COSTUMERS
+               ADD CUSTOMER
             </v-btn>
          </v-row>
 
-         <!-- Tabla -->
-         <GenericTable
-            :headers="headers"
-            :items="store.items"
-            :perPage="store.perPage"
-            @edit="editItem"
-            @delete="openDeleteDialog"   
-            @update:perPage="store.setPerPage"
-         />
+         <!-- Table -->
+         <GenericTable :headers="headers" :items="customers" :perPage="customersStore.perPage" @edit="editItem"
+            @delete="openDeleteDialog" @update:perPage="customersStore.setPerPage" />
 
-         <!-- Formulario -->
-         <GenericFormDialog
-            :fields="fields"
-            :modelValue="selectedItem"
-            v-model:visible="dialogVisible"
-            @submit="saveItem"
-         />
+         <!-- Forms -->
+         <GenericFormDialog :fields="fields" :modelValue="selectedItem" v-model:visible="dialogVisible"
+            @submit="saveItem" />
 
-                 <!-- 🔥 Diálogo de confirmación de borrado -->
+         <!-- deletion confirmation message-->
          <v-dialog v-model="deleteDialog" max-width="400">
             <v-card>
-               <v-card-title class="text-h6">Are you sure?</v-card-title>
+               <v-card-title class="text-h6 ml-7">Are you sure?</v-card-title>
                <v-card-text>
-                 This action will permanently delete the record.
+                  This action will permanently delete the record.
                </v-card-text>
                <v-card-actions>
                   <v-spacer></v-spacer>
@@ -45,81 +35,101 @@
    </v-container>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { useCrudForms } from '@/stores/Forms/useCrudForms'
-import GenericTable from '@/components/GenericTable/GenericTable.vue'
+import { storeToRefs } from 'pinia'
+import  GenericTable  from '@/components/GenericTable/GenericTable.vue'
 import GenericFormDialog from '@/components/GenericFormDialog/GenericFormDialog.vue'
 
-const store = useCrudForms()
+import { useCustomersStore } from '@/stores/customers/customers' 
+const customersStore = useCustomersStore()
+const { customers } = storeToRefs(customersStore)
 
-// Definimos las columnas de la tabla
+onMounted(() => {
+   customersStore.loadData()
+})
+
+
+// TABLE
 const headers = [
+   { title: 'Zoho Code', key: 'code' },
    { title: 'Name', key: 'name' },
    { title: 'Description', key: 'description' },
    { title: 'Actions', key: 'actions', sortable: false }
 ]
 
-// Definimos los campos del formulario
 const fields = [
+   { label: 'Zoho code', key: 'code', required: true },
    { label: 'Name', key: 'name', required: true },
    { label: 'Description', key: 'description', required: true }
 ]
 
 const dialogVisible = ref(false)
 const selectedItem = ref({})
-
-// 🟠 Estados para borrar
 const deleteDialog = ref(false)
-const deleteId = ref(null)
+const deleteUuid = ref<string | null>(null)
 
 const openDialog = () => {
-   selectedItem.value = {} // nuevo registro
+   selectedItem.value = {} // new register
    dialogVisible.value = true
 }
 
-const editItem = (item) => {
+const editItem = (item: any) => {
    selectedItem.value = { ...item }
    dialogVisible.value = true
 }
 
-const saveItem = (item) => {
-   // Validación simple
+// Save customer
+const saveItem = (item: any) => {
    if (!item.name || !item.description) {
-      // Mostramos el error, pero no cerramos el diálogo
       alert('All fields are required')
-      return // IMPORTANTE: salimos aquí antes de guardar
+      return
    }
 
-   // Si pasó la validación, guardamos y cerramos
-   if (item.id) {
-      store.updateItem(item.id, item)
+
+   const payload = {
+      uuid: item.uuid ,
+      code: item.code,
+      name: item.name,
+      description: item.description
+   }
+//console.log('Payload to save:', payload)
+   if (item.uuid) {
+      customersStore.updateItem( item.uuid, payload)
    } else {
-      store.addItem(item)
+      payload.uuid = crypto.randomUUID()
+      customersStore.addItem(payload)
    }
-   dialogVisible.value = false // Cerramos el diálogo solo después de guardar correctamente
+    //console.log('Payload to save:', payload) 
+
+   dialogVisible.value = false
 }
 
-// 🟠 Abrir confirmación de borrado
-function openDeleteDialog(id) {
-   deleteId.value = id
-   deleteDialog.value = true
+
+// Abrir confirmación de borrado
+const openDeleteDialog = (uuid: string | undefined) => {
+  if (uuid) {
+    deleteUuid.value = uuid
+    deleteDialog.value = true
+  } else {
+    alert('Invalid UUID for deletion')
+  }
 }
 
-// 🟠 Confirmar borrado
-function confirmDelete() {
-   if (deleteId.value) {
-      store.deleteItem(deleteId.value)
-   }
-   deleteDialog.value = false
-   deleteId.value = null
-}
+// Confirm deletion
+const confirmDelete = async () => {
+  if (deleteUuid.value) {
+    try {
+   
+      await customersStore.deleteItem(deleteUuid.value)
 
-// Datos iniciales de prueba
-onMounted(() => {
-   store.fetchItems([
-      { id: 1, name: 'Cliente 1', description: 'Handles sales operations' },
-      { id: 2, name: 'Cliente 2', description: 'Manages accounts' }
-   ])
-})
+    
+      deleteDialog.value = false
+      deleteUuid.value = null
+    } catch (error) {
+      console.error('Error borrando department:', error)
+      alert('Failed to delete department')
+    }
+  }
+}
 </script>

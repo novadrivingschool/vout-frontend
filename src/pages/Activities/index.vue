@@ -3,7 +3,7 @@
       <v-card class="pa-4 elevation-2 rounded">
          <!-- Encabezado -->
          <v-row align="center" justify="space-between" class="mb-2">
-            <h2 class="text-tittle-2 mb-0 ma-15">Activities</h2>
+            <h2 class="text-tittle-2 mb-0 ma-15 ml-7">Activities</h2>
             <v-btn color="orange darken-2 mb-0 ma-15" dark small @click="openDialog">
                ADD ACTIVITY
             </v-btn>
@@ -30,7 +30,7 @@
          <!-- 🔥 Diálogo de confirmación de borrado -->
          <v-dialog v-model="deleteDialog" max-width="400">
             <v-card>
-               <v-card-title class="text-h6">Are you sure?</v-card-title>
+               <v-card-title class="text-h6 ml-2">Are you sure?</v-card-title>
                <v-card-text>
                  This action will permanently delete the record.
                </v-card-text>

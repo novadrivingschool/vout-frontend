@@ -11,7 +11,7 @@
             v-model="formData[field.key]"
             :label="field.label"
             :error="errors[field.key]"
-            :error-messages="errors[field.key] ? ['Campo obligatorio'] : []"
+            :error-messages="errors[field.key] ? ['Required'] : []"
           />
         </v-form>
       </v-card-text>
@@ -25,25 +25,41 @@
   </v-dialog>
 </template>
 
-<script setup>
+<script setup lang="ts">
 import { reactive, ref, watch, computed } from 'vue'
 
-const props = defineProps({
-  fields: { type: Array, required: true },
-  modelValue: { type: Object, default: () => ({}) },
-  visible: { type: Boolean, default: false }
-})
+/* ---------- Tipos ---------- */
+interface Field {
+  key: string
+  label: string
+  required?: boolean
+}
 
-const emit = defineEmits(['submit', 'update:visible'])
+type FormData = Record<string, any>
+type Errors = Record<string, boolean>
 
-const formRef = ref(null)
-const formData = reactive({})
-const internalVisible = ref(props.visible)
-const errors = reactive({}) // <-- agregamos errores por campo
+/* ---------- Props ---------- */
+const props = defineProps<{
+  fields: Field[]
+  modelValue?: FormData
+  visible?: boolean
+}>()
 
+const emit = defineEmits<{
+  (e: 'submit', payload: FormData): void
+  (e: 'update:visible', value: boolean): void
+}>()
+
+/* ---------- Refs y estado ---------- */
+const formRef = ref<HTMLFormElement | null>(null)
+const formData = reactive<FormData>({})
+const internalVisible = ref<boolean>(props.visible ?? false)
+const errors = reactive<Errors>({})
+
+/* ---------- Watches ---------- */
 // Sincroniza prop con el ref interno
 watch(() => props.visible, (val) => {
-  internalVisible.value = val
+  if (val !== undefined) internalVisible.value = val
 })
 
 // Emitimos cambios al padre
@@ -52,13 +68,13 @@ watch(internalVisible, (val) => {
 })
 
 // Determina si estamos editando o creando
-const isEdit = computed(() => !!props.modelValue.id)
+const isEdit = computed(() => !!props.modelValue?.uuid)
 
 // Carga datos del modelValue al abrir
 watch(
   () => props.modelValue,
   (val) => {
-    Object.assign(formData, val)
+    if (val) Object.assign(formData, val)
   },
   { immediate: true }
 )
@@ -66,19 +82,16 @@ watch(
 // Limpiar el formulario al abrir en modo Add
 watch(internalVisible, (val) => {
   if (val && !isEdit.value) {
-    props.fields.forEach(f => formData[f.key] = '')
-    // Limpiamos errores
-    props.fields.forEach(f => errors[f.key] = false)
+    props.fields.forEach(f => (formData[f.key] = ''))
+    props.fields.forEach(f => (errors[f.key] = false))
   }
 })
 
+/* ---------- Métodos ---------- */
 const save = () => {
   let hasError = false
-
-  // Limpiamos errores anteriores
   Object.keys(errors).forEach(key => (errors[key] = false))
 
-  // Validación de campos requeridos
   props.fields.forEach(f => {
     if (f.required && !formData[f.key]) {
       errors[f.key] = true
@@ -86,11 +99,8 @@ const save = () => {
     }
   })
 
-  if (hasError) {
-    return // ⚠ No emitimos submit, el diálogo permanece abierto
-  }
+  if (hasError) return
 
-  // Emitimos solo si todo está correcto
   emit('submit', { ...formData })
   internalVisible.value = false
 }
