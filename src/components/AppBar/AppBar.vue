@@ -4,24 +4,21 @@
     <!-- Ícono sin margen extra -->
     <v-app-bar-nav-icon color="white" @click="drawerOpen = !drawerOpen" class="tight-navicon" />
 
-
-
     <!-- Logo pegado al ícono -->
     <v-toolbar-title>
       <v-img src="@/assets/Logos/voutLogoBlanco.png" alt="Logo" max-width="220" class="cursor-pointer"
         @click="$router.push('/welcome')" />
     </v-toolbar-title>
 
-
     <v-spacer />
 
     <!-- BOTÓN DE TEMA -->
     <v-btn icon @click="isDarkTheme = !isDarkTheme" title="Toggle theme">
-      <v-icon color="white"  size="30" >{{ isDarkTheme ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}</v-icon>
+      <v-icon color="white" size="30">{{ isDarkTheme ? 'mdi-weather-night' : 'mdi-white-balance-sunny' }}</v-icon>
     </v-btn>
 
     <v-btn icon @click="handleLogout" title="Log out">
-      <v-icon color="white"  size="30">mdi-logout</v-icon><!-- v-if="!isLoginPage"  -->
+      <v-icon color="white" size="30">mdi-logout</v-icon><!-- v-if="!isLoginPage"  -->
     </v-btn>
   </v-app-bar>
 
@@ -31,36 +28,41 @@
     <v-list nav dense>
       <!-- Navigation Items -->
 
-
-
       <!-- Activity Report -->
-      <v-list-group v-model="groupStates.activityReport" >
+      <v-list-group v-model="groupStates.activityReport">
         <template #activator="{ props }">
-          <v-list-item v-bind="props" prepend-icon="mdi-chart-bar" title="Activity Report" style="min-height:40px;"/>
+          <v-list-item v-bind="props" prepend-icon="mdi-chart-bar" title="Activity Report" style="min-height:40px;" />
         </template>
         <v-list-item v-for="sub in activityReport" :key="`table-${sub.route}`" :to="sub.route" :title="sub.title"
           :prepend-icon="sub.icon" link />
       </v-list-group>
 
       <!-- Costumers -->
-      <v-list-group v-model="groupStates.Customers" >
+      <v-list-group v-model="groupStates.Customers">
         <template #activator="{ props }">
           <v-list-item v-bind="props" prepend-icon="mdi-handshake" title="Customers" style="min-height:35px;" />
         </template>
         <v-list-item v-for="sub in Customers" :key="`table-${sub.route}`" :to="sub.route" :title="sub.title"
-          :prepend-icon="sub.icon" link  />
+          :prepend-icon="sub.icon" link />
       </v-list-group>
 
       <!-- Departments -->
-      <v-list-group v-model="groupStates.Departments" >
+      <v-list-group v-model="groupStates.Departments">
         <template #activator="{ props }">
-          <v-list-item v-bind="props" prepend-icon="mdi-account-group" title="Departments"  style="min-height:35px;" />
+          <v-list-item v-bind="props" prepend-icon="mdi-account-group" title="Departments" style="min-height:35px;" />
         </template>
         <v-list-item v-for="sub in Departments" :key="`table-${sub.route}`" :to="sub.route" :title="sub.title"
           :prepend-icon="sub.icon" link />
       </v-list-group>
 
-
+      <!-- HR -->
+      <v-list-group v-if="can('admin')" v-model="groupStates.Hr">
+        <template #activator="{ props }">
+          <v-list-item v-bind="props" prepend-icon="mdi-badge-account" title="HR" style="min-height:35px;" />
+        </template>
+        <v-list-item v-for="sub in Hr" :key="`table-${sub.route}`" :to="sub.route" :title="sub.title"
+          :prepend-icon="sub.icon" link />
+      </v-list-group>
 
     </v-list>
   </v-navigation-drawer>
@@ -70,22 +72,20 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTheme } from 'vuetify'
+import { useAuthStore } from '@/stores/auth/auth'
 
 const router = useRouter()
 const route = useRoute()
 const drawerOpen = ref(false)
-
 const isLoginPage = computed(() => route.path === '/')
-
 const theme = useTheme()
+const auth = useAuthStore()
+
 
 resizeObserver: null as ResizeObserver | null,
-
-
-
   // Cargar el tema guardado en localStorage
   onMounted(() => {
-    const savedTheme = localStorage.getItem('app-theme') || 'light'
+    const savedTheme = localStorage.getItem('vout-app-theme') || 'light'
     theme.global.name.value = savedTheme
   })
 
@@ -100,21 +100,17 @@ const isDarkTheme = computed({
   set: (val) => {
     const selected = val ? 'dark' : 'light'
     theme.global.name.value = selected
-    localStorage.setItem('app-theme', selected) // Guardar elección
+    localStorage.setItem('vout-app-theme', selected) // Guardar elección
   },
 })
 
-
 // State for list group expansions
 const groupStates = ref({
-
   activityReport: true,
   Customers: true,
   Departments: true,
-
+  Hr: true,
 })
-
-
 
 const activityReport = [
   { title: 'User Activity Report', icon: 'mdi-file-document', route: '/activity-report' }
@@ -128,12 +124,37 @@ const Departments = [
   { title: 'Departments', icon: 'mdi-briefcase', route: '/departments' }
 ]
 
+const Hr = [
+  { title: 'Staff', icon: 'mdi-account-tie', route: '/hr' }
+]
 
-
-const handleLogout = () => {
+/* const handleLogout = () => {
   localStorage.removeItem('auth')
   router.push('/')
+} */
+const handleLogout = async () => {
+  try {
+    await auth.logout() // 👈 llama al endpoint y limpia localStorage
+  } finally {
+    router.push('/') // o '/' según tu flujo
+  }
 }
+
+// Helper simple
+/* function can(role: string | string[]) {
+  const need = Array.isArray(role) ? role : [role]
+  const roles = auth.user?.roles ?? []
+  return need.some(r => roles.includes(r))
+} */
+
+
+function can(role: string | string[]) {
+  const auth = useAuthStore()
+  const need = Array.isArray(role) ? role : [role]
+  const roles = auth.roles // ✅ getter que saca los roles del JWT
+  return need.some(r => roles.includes(r))
+}
+
 </script>
 
 
@@ -145,7 +166,6 @@ const handleLogout = () => {
       #0099cc 100%) !important;
 }
 
-
 .v-list-group {
   margin-bottom: 0px !important;
 }
@@ -153,7 +173,4 @@ const handleLogout = () => {
 .v-list-item {
   margin-bottom: 0px !important;
 }
-
-
 </style>
-

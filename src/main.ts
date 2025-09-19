@@ -16,6 +16,9 @@ import { createApp } from 'vue'
 // Styles
 import 'unfonts.css'
 
+import '@/styles/autofill-fix.css'
+
+
 
 const app = createApp(App)
 

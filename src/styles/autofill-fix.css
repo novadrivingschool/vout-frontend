@@ -1,0 +1,27 @@
+/* Chrome / Edge */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+    -webkit-text-fill-color: #fff !important;
+    /* color del texto */
+    caret-color: #fff !important;
+    /* truco: cubrir el fondo que pinta el navegador */
+    -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+    box-shadow: 0 0 0 1000px transparent inset !important;
+    transition: background-color 9999s ease-out 0s !important;
+}
+
+/* Estándar (Firefox/Safari nuevos) — por si acaso */
+input:autofill,
+input:autofill:hover,
+input:autofill:focus {
+    color: #fff !important;
+    background-color: transparent !important;
+}
+
+/* Vuetify 3: asegurar inputs transparentes */
+.v-field__input input {
+    background-color: transparent !important;
+}

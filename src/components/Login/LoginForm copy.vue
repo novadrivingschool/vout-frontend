@@ -2,11 +2,9 @@
     <v-container fluid class="login-screen d-flex align-center justify-center">
         <v-card class="login-card pa-8" width="500">
             <!-- Logo + Título -->
-
             <div class="text-center mb-1">
                 <v-img src="@/assets/logos/voutLogoBlanco.png" alt="V-Out Logo" contain class="mx-auto mb-2" />
             </div>
-            
             <!-- Formulario -->
             <v-form @submit.prevent="handleLogin">
                 <v-text-field v-model="email" label="Username" variant="underlined" density="comfortable"
@@ -15,7 +13,6 @@
                     variant="underlined" density="comfortable" style="color: white" class="mb-6 minimal-input "
                     hide-details :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                     @click:append-inner="showPassword = !showPassword" />
-
                 <v-btn type="submit" class="custom-btn" block rounded>
                     Sign In
                 </v-btn>
@@ -29,30 +26,21 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth/auth'
 
 const router = useRouter()
-const auth = useAuthStore()
-
 const email = ref('')
 const password = ref('')
 const showPassword = ref(false)
 
-const handleLogin = async () => {
-    if (auth.loading) return
-    try {
-        await auth.login({ email: email.value.trim(), password: password.value })
-        router.push('/welcome') // o '/dashboard'
-    } catch (e: any) {
-        // El store ya lanzó Error(msg) con texto normalizado
-        alert(e?.message ?? 'Unable to sign in. Please try again.')
-        // UX: limpia password en errores típicos de auth/validación (opcional)
-        password.value = ''
+const handleLogin = () => {
+    if (email.value === 'admin' && password.value === '1234') {
+        //router.push('/dashboard')
+        router.push('/welcome')
+    } else {
+        alert('Invalid credentials')
     }
 }
 </script>
-
-
 
 <style scoped>
 .login-screen {

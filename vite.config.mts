@@ -83,7 +83,7 @@ export default defineConfig({
     ],
   },
   server: {
-    port: 3000,
+    port: 7070,
   },
   css: {
     preprocessorOptions: {
