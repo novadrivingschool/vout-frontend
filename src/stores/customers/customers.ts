@@ -2,8 +2,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-import { fakeDatabase } from '../fakeDatabase/fakeDatabase'
-
 const BASE_URL = import.meta.env.VITE_VOUT_API_URL + '/customers'
 export interface Customer {
   uuid: string

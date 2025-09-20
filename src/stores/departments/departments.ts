@@ -2,8 +2,6 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-import { fakeDatabase } from '../fakeDatabase/fakeDatabase'
-
 export interface Department {
   uuid: string
   name: string
