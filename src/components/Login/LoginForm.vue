@@ -4,7 +4,7 @@
             <!-- Logo + Título -->
 
             <div class="text-center mb-1">
-                <v-img src="@/assets/logos/voutLogoBlanco.png" alt="V-Out Logo" contain class="mx-auto mb-2" />
+                <v-img src="@/assets/Logos/voutLogoBlanco.png" alt="V-Out Logo" contain class="mx-auto mb-2" />
             </div>
             
             <!-- Formulario -->
