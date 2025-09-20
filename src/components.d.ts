@@ -8,18 +8,12 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppBar: typeof import('./components/AppBar/AppBar.vue')['default']
-    Calendar: typeof import('./components/Calendar/Calendar.vue')['default']
-    copy: typeof import('./components/Login/LoginForm copy.vue')['default']
-    Form: typeof import('./components/Form/Form.vue')['default']
-    FullCalender: typeof import('./components/Calendar/FullCalender.vue')['default']
+    AppBar: typeof import('./components/AppBar/AppBar.vue')['default']    
     GenericFormDialog: typeof import('./components/GenericFormDialog/GenericFormDialog.vue')['default']
     GenericTable: typeof import('./components/GenericTable/GenericTable.vue')['default']
-    LoginForm: typeof import('./components/Login/LoginForm.vue')['default']
-    'LoginForm copy': typeof import('./components/Login/LoginForm copy.vue')['default']
+    LoginForm: typeof import('./components/Login/LoginForm.vue')['default']    
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
-    ScheduleCalendar: typeof import('./components/Schedule/ScheduleCalendar.vue')['default']
     SharedTable: typeof import('./components/TableRecords/SharedTable.vue')['default']
   }
 }
