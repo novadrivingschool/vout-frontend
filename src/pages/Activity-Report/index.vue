@@ -81,46 +81,11 @@
                            <div style="margin-top:8px; font-weight:500;">ACTIVITY OUT</div>
                         </div>
                      </div>
-
-
-
                   </div>
 
                   <!-- Divider -->
                   <v-divider class="my-3"></v-divider>
 
-                  <!--Tabla de registros Activity Report -->
-                  <!-- <v-table>
-                  <thead>
-                     <tr>
-                        <th style="width: 15%;" class="text-center">Date</th>
-                        <th style="width: 10%;" class="text-center">Time</th>
-                        <th style="width: 20%;" class="text-center">Type of Activity</th>
-                        <th style="width: 20%;" class="text-center">Customer Name</th>
-                        <th style="width: 15%;" class="text-center">Department</th>
-                        <th style="width: 20%;" class="text-center">Description</th>
-                     </tr>
-                  </thead>
-                  <tbody>
-                     <tr v-for="log in activityReportStore.activityReports" :key="log.uuid">
-                        <td colspan="6" class="text-center text-grey">No records yet</td>
-                     </tr>
-                     <tr v-for="log in activityReports" :key="log.uuid">
-                        <td class="text-center">{{ log.created_date ?? '' }}</td>
-                        <td class="text-center">{{ log.created_time ?? '' }}</td>
-                        <td class="text-center">{{ log.type_of_activity ?? '' }}</td>
-                        <td class="text-center">{{ log.customer_name ?? '' }}</td>
-                        <td class="text-center">{{ log.customer_department_name ?? '' }}</td>
-                        <td class="text-center">
-                           <v-btn v-if="log.type_of_activity.startsWith('Activity Out') && log.activity_description"
-                              icon variant="text" color="primary" class="transition-transform hover:scale-125"
-                              @click="openDescription(log.activity_description, log.type_of_activity)">
-                              <v-icon>mdi-note-text</v-icon>
-                           </v-btn>
-                        </td>
-                     </tr>
-                  </tbody>
-               </v-table>  -->
                   <v-data-table :headers="headers" :items="activityReportStore.activityReports" item-key="uuid"
                      class="elevation-1">
                      <!-- DATE -->
