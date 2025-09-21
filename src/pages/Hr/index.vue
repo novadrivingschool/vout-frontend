@@ -1,16 +1,7 @@
 <!-- src/pages/Hr/index.vue -->
-<!-- <route lang="json">
-{
-  "meta": {
-    "requiresAuth": true,
-    "roles": ["admin"]
-  }
-}
-</route> -->
 <template>
     <v-container fluid class="py-6">
         <v-card class="elevation-3 rounded-lg overflow-hidden">
-
             <!-- Toolbar -->
             <v-toolbar density="comfortable" color="surface" class="px-4">
                 <v-toolbar-title class="text-h6 font-weight-semibold">
@@ -58,7 +49,7 @@
                     </v-chip>
                 </template>
 
-                <!-- Actions con separación -->
+                <!-- Actions -->
                 <template #item.actions="{ item }">
                     <div class="d-flex align-center ga-2 justify-end">
                         <v-tooltip text="Edit" location="top">
@@ -82,9 +73,7 @@
                 </template>
 
                 <template #no-data>
-                    <div class="py-10 text-medium-emphasis text-center">
-                        No employees found.
-                    </div>
+                    <div class="py-10 text-medium-emphasis text-center">No employees found.</div>
                 </template>
             </v-data-table>
 
@@ -150,12 +139,6 @@
 
                         <!-- More profile -->
                         <v-row dense class="mt-1">
-                            <!-- Birthdate -->
-                            <!-- <v-col cols="12" md="6">
-                                <v-text-field v-model="form.birthdate" label="Birthdate (YYYY-MM-DD)"
-                                    placeholder="YYYY-MM-DD" variant="outlined" density="comfortable"
-                                    hide-details="auto" />
-                            </v-col> -->
                             <v-col cols="12" md="6">
                                 <v-menu v-model="menu" :close-on-content-click="false" transition="scale-transition"
                                     offset-y min-width="auto">
@@ -180,11 +163,11 @@
                                     :items="['male', 'female', 'other', 'prefer_not_to_say']" label="Gender"
                                     variant="outlined" density="comfortable" hide-details="auto" />
                             </v-col>
-                            <!-- AVATAR -->
-                            <!-- <v-col cols="12" md="6">
-                                <v-text-field v-model="form.avatarUrl" label="Avatar URL" :rules="[rules.url]"
-                                    variant="outlined" density="comfortable" hide-details="auto" />
-                            </v-col> -->
+                            <!-- Avatar URL opcional
+              <v-col cols="12" md="6">
+                <v-text-field v-model="form.avatarUrl" label="Avatar URL" :rules="[rules.url]" variant="outlined" density="comfortable" hide-details="auto" />
+              </v-col>
+              -->
                         </v-row>
                     </v-form>
                 </v-card-text>
@@ -192,19 +175,17 @@
                 <v-card-actions class="px-4 pb-4">
                     <v-spacer />
                     <v-btn variant="text" @click="closeDialog">Cancel</v-btn>
-                    <v-btn color="primary" :loading="usersStore.loading" @click="save">
-                        Save
-                    </v-btn>
+                    <v-btn color="primary" :loading="usersStore.loading" @click="save">Save</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
 
-        <!-- Loading overlay al refrescar/operar -->
+        <!-- Loading overlay -->
         <v-overlay :model-value="usersStore.loading" class="align-center justify-center" persistent>
             <v-progress-circular indeterminate size="42" width="4" />
         </v-overlay>
 
-        <!-- Snackbar feedback -->
+        <!-- Snackbar -->
         <v-snackbar v-model="snack.show" :timeout="2500" location="bottom right" color="primary">
             {{ snack.message }}
         </v-snackbar>
@@ -217,29 +198,16 @@ import { useUsersStore } from '@/stores/users/users'
 import { format } from 'date-fns'
 import { definePage } from 'vue-router/auto'
 
-
-/** 👉 Esto inyecta meta en la ruta generada por el auto-router */
 definePage({
-  meta: {
-    requiresAuth: true,
-    roles: ['admin'], // SOLO admin
-  },
+    meta: {
+        requiresAuth: true,
+        roles: ['admin'],
+    },
 })
 
-/** (Cinturón y tirantes) fallback por si el meta no se regeneró aún */
-/* const router = useRouter()
-const auth = useAuthStore()
-if (!auth.roles?.includes('admin')) {
-  router.replace('/forbidden') // ajusta a tu path real
-} */
-
-// ====== Store ======
 const usersStore = useUsersStore()
-
-// Ajusta a tu enum Role del backend
 const ROLE_OPTIONS = ['admin', 'employee', 'customer']
 
-// ====== Tipos de la tabla ======
 type EmployeeRow = {
     id: string
     email: string
@@ -247,10 +215,15 @@ type EmployeeRow = {
     roles?: string[]
     isActive?: boolean
     createdAt?: string
-    firstName?: string
-    lastName?: string
-    avatarUrl?: string
-    profile?: any
+    profile?: {
+        firstName?: string
+        lastName?: string
+        birthdate?: string
+        phone?: string
+        gender?: string
+        avatarUrl?: string
+        metadata?: Record<string, any>
+    } | null
 }
 
 type Header<E> = {
@@ -263,8 +236,6 @@ type Header<E> = {
 
 const menu = ref(false)
 
-
-// Headers (corporativos)
 const headers: ReadonlyArray<Header<EmployeeRow>> = [
     { title: 'Name', key: 'fullName', sortable: true, align: 'start' },
     { title: 'Email', key: 'email', sortable: true, align: 'start' },
@@ -274,35 +245,29 @@ const headers: ReadonlyArray<Header<EmployeeRow>> = [
     { title: 'Actions', key: 'actions', sortable: false, align: 'end', width: 140 },
 ]
 
-// Map backend → filas
+// 🔧 Map correcto desde backend → filas (usa profile para el nombre)
 const items = computed<EmployeeRow[]>(() =>
-    (usersStore.users || []).map(u => ({
-        id: u.id,
-        email: u.email,
-        fullName: [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || '-',
-        roles: u.roles ?? [],
-        isActive: u.isActive ?? true,
-        createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '',
-        firstName: u.firstName,
-        lastName: u.lastName,
-        avatarUrl: u.avatarUrl,
-        profile: u.profile,
-    }))
+    (usersStore.users || []).map(u => {
+        const fn = u.profile?.firstName ?? ''
+        const ln = u.profile?.lastName ?? ''
+        return {
+            id: u.id,
+            email: u.email,
+            fullName: [fn, ln].filter(Boolean).join(' ').trim() || '-',
+            roles: u.roles ?? [],
+            isActive: u.isActive ?? true,
+            createdAt: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '',
+            profile: u.profile ?? null,
+        }
+    })
 )
 
-// Búsqueda
 const search = ref('')
-
-// Last updated
 const lastUpdated = ref<Date | null>(null)
-const lastUpdatedText = computed(() =>
-    lastUpdated.value ? lastUpdated.value.toLocaleString() : '—'
-)
+const lastUpdatedText = computed(() => (lastUpdated.value ? lastUpdated.value.toLocaleString() : '—'))
 
-// Snackbar
 const snack = reactive({ show: false, message: '' })
 
-// Dialog & form
 const dialog = ref(false)
 const isEditing = ref(false)
 const formRef = ref<any>(null)
@@ -311,11 +276,25 @@ const editingId = ref<string | null>(null)
 
 type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say' | string
 
-const initialForm = () => ({
+type FlatForm = {
+    email: string
+    password: string
+    isActive: boolean
+    roles: string[]
+    firstName: string
+    lastName: string
+    birthdate: string
+    phone: string
+    gender: Gender
+    avatarUrl: string
+    metadata?: Record<string, any> | undefined
+}
+
+const initialForm = (): FlatForm => ({
     email: '',
     password: 'secreto123', // requerido solo al crear
     isActive: true,
-    roles: ['employee'] as string[],
+    roles: ['employee'],
 
     firstName: '',
     lastName: '',
@@ -323,49 +302,110 @@ const initialForm = () => ({
     phone: '',
     gender: '' as Gender,
     avatarUrl: '',
-    metadata: undefined as Record<string, any> | undefined,
+    metadata: undefined,
 })
 
-const form = reactive(initialForm())
+const form = reactive<FlatForm>(initialForm())
 
-// Validaciones
+// 🔒 Snapshot original para detectar cambios
+let original: FlatForm | null = null
+
 const rules = {
     required: (v: any) => (!!v || v === false) || 'Required.',
     email: (v: string) => /^\S+@\S+\.\S+$/.test(v) || 'Invalid email.',
-    min8: (v: string) => (isEditing.value || (v && v.length >= 8)) || 'Min 8 chars.',
+    min8: (v: string) => (!isEditing.value ? (v && v.length >= 8) : true) || 'Min 8 chars.',
     url: (v: string) => (!v || /^(https?:\/\/|data:image)/i.test(v)) || 'Invalid URL.',
 }
 
-// Métodos
 function openCreate() {
     isEditing.value = false
     editingId.value = null
     Object.assign(form, initialForm())
+    original = null
     dialog.value = true
 }
 
 function openEdit(row: EmployeeRow) {
     isEditing.value = true
     editingId.value = row.id
-    Object.assign(form, {
+
+    const p = row.profile ?? {}
+    const seed: FlatForm = {
         email: row.email || '',
         password: '',
         isActive: row.isActive ?? true,
         roles: Array.isArray(row.roles) ? [...row.roles] : ['employee'],
 
-        firstName: row.firstName || row.profile?.firstName || '',
-        lastName: row.lastName || row.profile?.lastName || '',
-        birthdate: row.profile?.birthdate || '',
-        phone: row.profile?.phone || '',
-        gender: row.profile?.gender || '',
-        avatarUrl: row.avatarUrl || row.profile?.avatarUrl || '',
-        metadata: row.profile?.metadata || undefined,
-    })
+        firstName: p.firstName || '',
+        lastName: p.lastName || '',
+        birthdate: p.birthdate || '',
+        phone: p.phone || '',
+        gender: (p.gender as Gender) || '',
+        avatarUrl: p.avatarUrl || '',
+        metadata: p.metadata || undefined,
+    }
+
+    Object.assign(form, seed)
+    original = JSON.parse(JSON.stringify(seed)) // deep clone
     dialog.value = true
 }
 
 function closeDialog() {
     dialog.value = false
+}
+
+// 🧠 Utilidad: compara arrays (roles)
+function arraysEqual(a?: any[], b?: any[]) {
+    if (!Array.isArray(a) && !Array.isArray(b)) return true
+    if (!Array.isArray(a) || !Array.isArray(b)) return false
+    if (a.length !== b.length) return false
+    return a.every((v, i) => v === b[i])
+}
+
+// 🧠 Construye payload SOLO con cambios y con profile anidado
+function buildUpdatePayload(current: FlatForm, base: FlatForm) {
+    const payload: any = {}
+    const profile: any = {}
+
+    // Campos root
+    if (current.email !== base.email) payload.email = current.email
+    if (current.isActive !== base.isActive) payload.isActive = current.isActive
+    if (!arraysEqual(current.roles, base.roles)) payload.roles = current.roles
+    if (current.password && current.password.length >= 8 && current.password !== base.password) {
+        payload.password = current.password
+    }
+
+    // Campos de perfil
+    const PROFILE_KEYS: (keyof FlatForm)[] = ['firstName', 'lastName', 'birthdate', 'phone', 'gender', 'avatarUrl', 'metadata']
+    for (const key of PROFILE_KEYS) {
+        if (JSON.stringify(current[key]) !== JSON.stringify(base[key])) {
+            profile[key] = current[key as keyof FlatForm]
+        }
+    }
+
+    if (Object.keys(profile).length) payload.profile = profile
+
+    return payload
+}
+
+// 🧠 Payload para crear (CreateUserDto)
+function buildCreatePayload(current: FlatForm) {
+    const payload: any = {
+        email: current.email,
+        password: current.password,
+        isActive: current.isActive,
+        roles: current.roles,
+    }
+    payload.profile = {
+        firstName: current.firstName || undefined,
+        lastName: current.lastName || undefined,
+        birthdate: current.birthdate || undefined,
+        phone: current.phone || undefined,
+        gender: current.gender || undefined,
+        avatarUrl: current.avatarUrl || undefined,
+        metadata: current.metadata || undefined,
+    }
+    return payload
 }
 
 async function save() {
@@ -374,18 +414,26 @@ async function save() {
     if (!valid) return
 
     try {
-        if (isEditing.value && editingId.value) {
-            await usersStore.updateUser(editingId.value, { ...form })
+        if (isEditing.value && editingId.value && original) {
+            const payload = buildUpdatePayload(form, original)
+            if (!Object.keys(payload).length) {
+                snack.message = 'No changes to save.'
+                snack.show = true
+                return
+            }
+            await usersStore.updateUser(editingId.value, payload)
             snack.message = 'Employee updated successfully.'
         } else {
-            await usersStore.createUser({ ...form })
+            // Crear
+            const payload = buildCreatePayload(form)
+            await usersStore.createUser(payload)
             snack.message = 'Employee created successfully.'
         }
         snack.show = true
         closeDialog()
-        await refresh(false) // silent refresh to show latest list
+        await refresh(false)
     } catch (e: any) {
-        alert(e.message || 'Failed to save user.')
+        alert(e?.response?.data?.message || e.message || 'Failed to save user.')
     }
 }
 
@@ -402,7 +450,6 @@ async function onDelete(id: string) {
 }
 
 function roleColor(r: string) {
-    // Paleta corporativa por rol (ajústala a tu branding)
     if (r === 'admin') return 'red'
     if (r === 'employee') return 'teal'
     if (r === 'customer') return 'indigo'
@@ -419,36 +466,27 @@ async function refresh(showSnack = true) {
 }
 
 function selectDate(date: string | Date) {
-    // si el picker devuelve un string ya en ISO, lo dejamos
     if (typeof date === 'string') {
         form.birthdate = date
     } else {
-        // si devuelve Date -> lo formateamos
         form.birthdate = format(date, 'yyyy-MM-dd')
     }
-    menu.value = false // cerrar menú al seleccionar
+    menu.value = false
 }
 
-
-
-// Cargar al montar
 onMounted(async () => {
     await refresh(false)
 })
 </script>
 
 <style scoped>
-/* Espaciado correcto entre search y Add */
 .search-field {
     min-width: 260px;
     max-width: 360px;
 }
 
-/* Apariencia corporativa de la tabla (más aire entre celdas) */
 .corporate-table :deep(.v-data-table__tr)>* {
     padding-top: 10px !important;
     padding-bottom: 10px !important;
 }
-
-/* Botones de acciones con mejor separación ya se logra con ga-2 en el slot */
 </style>

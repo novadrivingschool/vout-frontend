@@ -64,6 +64,15 @@
           :prepend-icon="sub.icon" link />
       </v-list-group>
 
+      <!-- My Account -->
+      <v-list-group v-model="groupStates.myProfile">
+        <template #activator="{ props }">
+          <v-list-item v-bind="props" prepend-icon="mdi-account-circle" title="My Account" style="min-height:35px;" />
+        </template>
+        <v-list-item v-for="sub in myProfile" :key="`table-${sub.route}`" :to="sub.route" :title="sub.title"
+          :prepend-icon="sub.icon" link />
+      </v-list-group>
+
     </v-list>
   </v-navigation-drawer>
 </template>
@@ -110,6 +119,7 @@ const groupStates = ref({
   Customers: true,
   Departments: true,
   Hr: true,
+  myProfile: true,
 })
 
 const activityReport = [
@@ -126,6 +136,10 @@ const Departments = [
 
 const Hr = [
   { title: 'Staff', icon: 'mdi-account-tie', route: '/hr' }
+]
+
+const myProfile = [
+  { title: 'My Profile', icon: 'mdi-account-cog', route: '/my-profile' }
 ]
 
 /* const handleLogout = () => {

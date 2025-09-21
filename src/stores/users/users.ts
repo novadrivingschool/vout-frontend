@@ -208,6 +208,7 @@ export const useUsersStore = defineStore('users', {
             this.loading = true
             try {
                 const dto = toUpdateDto(payload)
+                console.log("dto:", JSON.stringify(dto, null, 2))
                 const { data } = await http.patch<User>(`/users/${id}`, dto)
                 const user = normalizeUser(data)
                 // sync local state
@@ -243,6 +244,40 @@ export const useUsersStore = defineStore('users', {
                     403: 'Access denied.',
                     404: 'User not found.',
                     default: 'Failed to delete user.'
+                })
+                throw new Error(msg)
+            } finally {
+                this.loading = false
+            }
+        },
+
+        // PATCH /users/me  (atalho que reusa updateUser)
+        async updateMe(payload: UpdateUserPayload): Promise<User> {
+            if (!this.currentUser?.id) {
+                // Si no hay currentUser, lo obtenemos primero
+                await this.fetchMe()
+            }
+            if (!this.currentUser?.id) {
+                throw new Error('No current user in session.')
+            }
+            // Reutiliza el mapeo toUpdateDto + la lógica de updateUser
+            return this.updateUser(this.currentUser.id, payload)
+        },
+
+        // POST /users/me/change-password
+        // Usa el mismo flujo de update (toUpdateDto) pero separado
+        async changeMyPassword(body: { currentPassword?: string; newPassword: string }): Promise<void> {
+            this.loading = true
+            try {
+                // Reutiliza updateMe → PATCH /users/me con { password }
+                await this.updateMe({ password: body.newPassword })
+            } catch (e) {
+                const msg = explainAxiosError(e, {
+                    400: 'Invalid request. Check password.',
+                    401: 'Unauthorized. Please sign in.',
+                    403: 'Access denied.',
+                    422: 'Validation error.',
+                    default: 'Failed to change password.'
                 })
                 throw new Error(msg)
             } finally {

@@ -8,18 +8,26 @@ export interface RefreshTokenDto { refreshToken: string }
 export interface TokensDto { accessToken: string; refreshToken: string }
 
 export interface User {
-    id: string
-    email: string
-    roles?: string[]
-    isActive?: boolean
-    createdAt?: string
-    updatedAt?: string
-    firstName?: string
-    lastName?: string
-    avatarUrl?: string
-    employee_number?: string
-    [k: string]: unknown
+  id: string
+  email: string
+  roles?: string[]
+  isActive?: boolean
+  createdAt?: string
+  updatedAt?: string
+
+  // Campos de conveniencia (aplanados desde profile)
+  firstName?: string
+  lastName?: string
+  avatarUrl?: string
+  employee_number?: string
+  birthdate?: string       // 'YYYY-MM-DD'
+  phone?: string
+  gender?: string
+  metadata?: Record<string, any>
+
+  [k: string]: unknown
 }
+
 
 export interface AuthResponseDto {
     user: User
