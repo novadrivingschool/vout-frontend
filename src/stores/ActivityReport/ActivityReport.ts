@@ -1,10 +1,19 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 import type { ActivityReport } from '@/interfaces/ActivityReport'
+import { useAuthStore } from '@/stores/auth/auth'
 
+const auth = useAuthStore();
 const BASE_URL = import.meta.env.VITE_VOUT_API_URL + '/activity_report'
 
-
+export interface EmployeeData {
+  /** Identificador único del empleado, p.ej. "NOVA123" */
+  employee_number: string;
+  /** Nombre */
+  employee_name: string;
+  /** Apellido */
+  employee_last_name: string;  
+}
 
 export const useActivityReportStore = defineStore('activityReport', {
   state: () => ({
@@ -19,11 +28,12 @@ export const useActivityReportStore = defineStore('activityReport', {
       activity: false
     },
 
-    employee_data: {
+    /* employee_data: {
       employee_number: "NOVA123",
       employee_name: "Test",
       employee_last_name: "Test"
-    }
+    } */
+    employee_data: {} as EmployeeData
   }),
 
 
@@ -58,7 +68,26 @@ export const useActivityReportStore = defineStore('activityReport', {
       } = {},
       employeeOptions?: { employee_number: string; employee_name: string; employee_last_name: string }
     ): ActivityReport {
-      const employee = employeeOptions || this.employee_data
+      //const employee = employeeOptions || this.employee_data
+      /* const employee =
+        employeeOptions ??
+        (auth.user
+          ? {
+            employee_number:
+              (auth.user as any).employee_number ??
+              (auth.user as any).employeeNumber ??
+              auth.user.id ??
+              '',
+            employee_name:
+              (auth.user as any).employee_name ??
+              auth.user.firstName ??
+              '',
+            employee_last_name:
+              (auth.user as any).employee_last_name ??
+              auth.user.lastName ??
+              '',
+          }
+          : this.employee_data) */
 
       const payload: ActivityReport = {
         type_of_activity: typeOfActivity,
@@ -69,9 +98,9 @@ export const useActivityReportStore = defineStore('activityReport', {
         customer_department_name: options.customer_department_name,
         activity_description: options.activity_description,
         activity_title: options.activity_title,
-        employee_number: employee.employee_number,
-        employee_name: employee.employee_name,
-        employee_last_name: employee.employee_last_name,
+        employee_number: auth.user?.employee_number || '',
+        employee_name: auth.user?.firstName || '',
+        employee_last_name: auth.user?.lastName || '',
 
         estados: {
           clock: this.estados.clock,
@@ -121,7 +150,7 @@ export const useActivityReportStore = defineStore('activityReport', {
         if (allLogs.length > 0) {
           this.lastReport = allLogs[0];
 
-          
+
           const t = this.lastReport.estados ?? { clock: false, lunch: false, biobreak: false, activity: false };
           this.estados.clock = !!t.clock;
           this.estados.lunch = !!t.lunch;

@@ -8,10 +8,10 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
-    AppBar: typeof import('./components/AppBar/AppBar.vue')['default']    
+    AppBar: typeof import('./components/AppBar/AppBar.vue')['default']
     GenericFormDialog: typeof import('./components/GenericFormDialog/GenericFormDialog.vue')['default']
     GenericTable: typeof import('./components/GenericTable/GenericTable.vue')['default']
-    LoginForm: typeof import('./components/Login/LoginForm.vue')['default']    
+    LoginForm: typeof import('./components/Login/LoginForm.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SharedTable: typeof import('./components/TableRecords/SharedTable.vue')['default']

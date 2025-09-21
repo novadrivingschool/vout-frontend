@@ -231,11 +231,15 @@
 import { ref, onMounted } from 'vue'
 import { useCustomersStore } from '@/stores/customers/customers'
 import { useDepartmentsStore } from '@/stores/departments/departments'
-import { useActivityReportStore } from '@/stores/ActivityReport/ActivityReport'
+import { useActivityReportStore, type EmployeeData } from '@/stores/ActivityReport/ActivityReport'
 import type { DataTableHeader } from 'vuetify'
 import type { ActivityReport } from '@/interfaces/ActivityReport'
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue';
+
+import { useAuthStore } from '@/stores/auth/auth'
+
+const auth = useAuthStore()
 
 // ------------------------------
 // Headers tabla
@@ -282,29 +286,38 @@ const isActivity = computed({
 // ------------------------------
 // Employee temporal
 // ------------------------------
-const employee_data = {
+/* const employee_data = {
    employee_number: "NOVA123",
    employee_name: "Test",
    employee_last_name: "Test"
-}
+} */
+let employee_data = {} as EmployeeData;
+
+
 
 // ------------------------------
 // Función para actualizar toggles
 // ------------------------------
-function toggleActivity(type: 'CLOCK' | 'LUNCH' | 'BIO BREAK' | 'ACTIVITY', isIn: boolean) {
+/* function toggleActivity(type: 'CLOCK' | 'LUNCH' | 'BIO BREAK' | 'ACTIVITY', isIn: boolean) {
    switch (type) {
       case 'CLOCK': activityReportStore.estados.clock = isIn; break
       case 'LUNCH': activityReportStore.estados.lunch = isIn; break
       case 'BIO BREAK': activityReportStore.estados.biobreak = isIn; break
       case 'ACTIVITY': activityReportStore.estados.activity = isIn; break
    }
-}
+} */
 
 // ------------------------------
 // onMounted - carga inicial
 // ------------------------------
 const isLoading = ref(true)
 onMounted(async () => {
+   employee_data = {
+      employee_number: auth.user?.employee_number || '',
+      employee_name: auth.user?.firstName || '',
+      employee_last_name: auth.user?.lastName || '',
+   };
+
    isLoading.value = true
    await customersStore.loadData()
    await departmentsStore.loadData()
@@ -358,7 +371,7 @@ const clockIn = async () => {
    const newReport = await activityReportStore.addItem(payload)
    //console.log("✅ Clock In - Registro recibido del backend:", newReport)
 
-   await activityReportStore.loadTodayLogs(payload.employee_number)
+   await activityReportStore.loadTodayLogs(employee_data.employee_number)
 
    // 📥 Log del estado actualizado de la tabla
    //console.log("📋 Tabla actualizada:", activityReportStore.activityReports)
@@ -395,12 +408,12 @@ const bioBreak = async () => {
    breakType.value = 'bio'
 
    const payload = activityReportStore.buildPayload("BIO BREAK")
-   //console.log("⏱ BIO BREAK IN - Payload a enviar:", payload)
+   console.log("⏱ BIO BREAK IN - Payload a enviar:", payload)
 
    const newReport = await activityReportStore.addItem(payload)
    //console.log("Bio break in - Registro recibido del backend:", newReport)
 
-   await activityReportStore.loadTodayLogs(payload.employee_number)
+   await activityReportStore.loadTodayLogs(employee_data.employee_number)
 
 }
 
@@ -409,7 +422,8 @@ const endBioBreak = async () => {
    breakType.value = ''
 
    const payload = activityReportStore.buildPayload("BACK BIO BREAK")
-   //console.log("⏱ BACK BREAK  - Payload a enviar:", payload)
+   console.log("⏱ BACK BREAK  - Payload a enviar:", payload)
+
    const newReport = await activityReportStore.addItem(payload)
    //console.log("BACK bio break  - Registro recibido del backend:", newReport)
    await activityReportStore.loadTodayLogs(employee_data.employee_number)

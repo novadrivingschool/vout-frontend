@@ -17,6 +17,7 @@ export interface User {
     firstName?: string
     lastName?: string
     avatarUrl?: string
+    employee_number?: string
     [k: string]: unknown
 }
 
