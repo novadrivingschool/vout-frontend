@@ -163,11 +163,6 @@
                                     :items="['male', 'female', 'other', 'prefer_not_to_say']" label="Gender"
                                     variant="outlined" density="comfortable" hide-details="auto" />
                             </v-col>
-                            <!-- Avatar URL opcional
-              <v-col cols="12" md="6">
-                <v-text-field v-model="form.avatarUrl" label="Avatar URL" :rules="[rules.url]" variant="outlined" density="comfortable" hide-details="auto" />
-              </v-col>
-              -->
                         </v-row>
                     </v-form>
                 </v-card-text>
