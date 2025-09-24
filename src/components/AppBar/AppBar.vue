@@ -37,8 +37,17 @@
           :prepend-icon="sub.icon" link />
       </v-list-group>
 
+      <!-- HR -->
+      <v-list-group v-if="can('admin')" v-model="groupStates.adminActivityReport">
+        <template #activator="{ props }">
+          <v-list-item v-bind="props" prepend-icon="mdi-clipboard-text-clock-outline" title="Admin Activity Report" style="min-height:35px;" />
+        </template>
+        <v-list-item v-for="sub in adminActivityReport" :key="`table-${sub.route}`" :to="sub.route" :title="sub.title"
+          :prepend-icon="sub.icon" link />
+      </v-list-group>
+
       <!-- Costumers -->
-      <v-list-group v-model="groupStates.Customers">
+      <v-list-group v-if="can('admin')" v-model="groupStates.Customers">
         <template #activator="{ props }">
           <v-list-item v-bind="props" prepend-icon="mdi-handshake" title="Customers" style="min-height:35px;" />
         </template>
@@ -47,7 +56,7 @@
       </v-list-group>
 
       <!-- Departments -->
-      <v-list-group v-model="groupStates.Departments">
+      <v-list-group v-if="can('admin')" v-model="groupStates.Departments">
         <template #activator="{ props }">
           <v-list-item v-bind="props" prepend-icon="mdi-account-group" title="Departments" style="min-height:35px;" />
         </template>
@@ -116,6 +125,7 @@ const isDarkTheme = computed({
 // State for list group expansions
 const groupStates = ref({
   activityReport: true,
+  adminActivityReport: true,  
   Customers: true,
   Departments: true,
   Hr: true,
@@ -124,6 +134,11 @@ const groupStates = ref({
 
 const activityReport = [
   { title: 'User Activity Report', icon: 'mdi-file-document', route: '/activity-report' }
+]
+
+const adminActivityReport = [
+  { title: 'Admin Activity Report', icon: 'mdi-clipboard-list', route: '/admin-activity-report' },
+  { title: 'Dashboard', icon: 'mdi-view-dashboard-outline', route: '/dashboard-admin-activity-report' }
 ]
 
 const Customers = [

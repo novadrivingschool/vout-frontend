@@ -16,23 +16,30 @@ router.beforeEach((to) => {
   const WELCOME = '/Welcome'
   const FORBIDDEN = '/Forbidden'
 
-  if (to.meta?.public) return
+  // ✅ Solo la hoja final decide si es pública
+  const leaf = to.matched[to.matched.length - 1]
+  const isPublic = leaf?.meta?.public === true
+  if (isPublic) return
 
-  if (to.meta?.requiresAuth && !isAuthenticated) {
+  // ✅ Si cualquier record pide auth, exige estar logueado
+  const requiresAuth = to.matched.some(r => r.meta?.requiresAuth === true)
+  if (requiresAuth && !isAuthenticated) {
     return { path: LOGIN, query: { redirect: to.fullPath } }
   }
 
-  if (isAuthenticated && to.path === LOGIN) {
-    return WELCOME
-  }
+  if (isAuthenticated && to.path === LOGIN) return WELCOME
 
-  const needRoles = (to.meta?.roles as string[] | undefined) ?? []
-  if (needRoles.length) {
-    const userRoles = auth.roles ?? []
-    const ok = needRoles.some(r => userRoles.includes(r))
+  // ✅ Unir roles requeridos de toda la cadena
+  const requiredRoles = to.matched.flatMap(r => (r.meta?.roles as string[] | undefined) ?? [])
+
+  if (requiredRoles.length) {
+    // Tus roles vienen del token (getter auth.roles). Compara case-insensitive.
+    const userRoles = (auth.roles ?? []).map(r => r.toLowerCase())
+    const ok = requiredRoles.some(r => userRoles.includes(String(r).toLowerCase()))
     if (!ok) return FORBIDDEN
   }
 })
+
 
 
 export default router

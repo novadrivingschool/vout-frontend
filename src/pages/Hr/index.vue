@@ -117,10 +117,24 @@
                             </v-col>
 
                             <v-col cols="12" md="6">
+                                <!-- Password stays disabled -->
                                 <v-text-field v-model="form.password" :type="isEditing ? 'text' : 'password'"
-                                    :label="isEditing ? 'Password (leave empty to keep)' : 'Password'"
+                                    :label="isEditing ? 'Password (disabled)' : 'Password (disabled)'"
                                     :rules="[rules.min8]" :disabled="true" variant="outlined" density="comfortable"
-                                    hide-details="auto" /><!-- :disabled="isEditing" -->
+                                    hide-details="auto" />
+                                <!-- Reset password guard + button (only in Edit) -->
+                                <div v-if="isEditing" class="mt-2 d-flex align-center" style="gap: 12px;">
+                                    <v-checkbox v-model="unlockReset" density="compact" hide-details
+                                        label="Enable password reset" />
+                                    <v-btn size="small" color="primary" variant="tonal" :disabled="!unlockReset"
+                                        :loading="resetLoading" @click="onResetPassword">
+                                        <v-icon start>mdi-lock-reset</v-icon>
+                                        Reset password
+                                    </v-btn>
+                                </div>
+                                <div v-if="isEditing" class="text-caption text-medium-emphasis mt-1">
+                                    New password will be set to <strong>secreto123</strong>.
+                                </div>
                             </v-col>
                         </v-row>
 
@@ -188,6 +202,12 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * Password reset UX:
+ * - Password text-field remains disabled in both Create/Edit.
+ * - In Edit mode, show a checkbox to enable the "Reset password" button.
+ * - Clicking the button sends an UPDATE with { password: 'secreto123' }.
+ */
 import { onMounted, reactive, ref, computed } from 'vue'
 import { useUsersStore } from '@/stores/users/users'
 import { format } from 'date-fns'
@@ -240,7 +260,7 @@ const headers: ReadonlyArray<Header<EmployeeRow>> = [
     { title: 'Actions', key: 'actions', sortable: false, align: 'end', width: 140 },
 ]
 
-// 🔧 Map correcto desde backend → filas (usa profile para el nombre)
+/* Map backend → rows */
 const items = computed<EmployeeRow[]>(() =>
     (usersStore.users || []).map(u => {
         const fn = u.profile?.firstName ?? ''
@@ -269,6 +289,10 @@ const formRef = ref<any>(null)
 const formValid = ref(false)
 const editingId = ref<string | null>(null)
 
+/* Reset password guards */
+const unlockReset = ref(false)
+const resetLoading = ref(false)
+
 type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say' | string
 
 type FlatForm = {
@@ -287,10 +311,9 @@ type FlatForm = {
 
 const initialForm = (): FlatForm => ({
     email: '',
-    password: 'secreto123', // requerido solo al crear
+    password: 'secreto123', // default for create only (field stays disabled)
     isActive: true,
     roles: ['employee'],
-
     firstName: '',
     lastName: '',
     birthdate: '',
@@ -302,7 +325,7 @@ const initialForm = (): FlatForm => ({
 
 const form = reactive<FlatForm>(initialForm())
 
-// 🔒 Snapshot original para detectar cambios
+/* Snapshot for diffing in Edit */
 let original: FlatForm | null = null
 
 const rules = {
@@ -317,6 +340,7 @@ function openCreate() {
     editingId.value = null
     Object.assign(form, initialForm())
     original = null
+    unlockReset.value = false
     dialog.value = true
 }
 
@@ -327,10 +351,9 @@ function openEdit(row: EmployeeRow) {
     const p = row.profile ?? {}
     const seed: FlatForm = {
         email: row.email || '',
-        password: '',
+        password: '', // not shown / disabled
         isActive: row.isActive ?? true,
         roles: Array.isArray(row.roles) ? [...row.roles] : ['employee'],
-
         firstName: p.firstName || '',
         lastName: p.lastName || '',
         birthdate: p.birthdate || '',
@@ -341,15 +364,17 @@ function openEdit(row: EmployeeRow) {
     }
 
     Object.assign(form, seed)
-    original = JSON.parse(JSON.stringify(seed)) // deep clone
+    original = JSON.parse(JSON.stringify(seed))
+    unlockReset.value = false
     dialog.value = true
 }
 
 function closeDialog() {
     dialog.value = false
+    unlockReset.value = false
 }
 
-// 🧠 Utilidad: compara arrays (roles)
+/* Shallow array equality for roles */
 function arraysEqual(a?: any[], b?: any[]) {
     if (!Array.isArray(a) && !Array.isArray(b)) return true
     if (!Array.isArray(a) || !Array.isArray(b)) return false
@@ -357,12 +382,11 @@ function arraysEqual(a?: any[], b?: any[]) {
     return a.every((v, i) => v === b[i])
 }
 
-// 🧠 Construye payload SOLO con cambios y con profile anidado
+/* Build UPDATE payload with only changed fields */
 function buildUpdatePayload(current: FlatForm, base: FlatForm) {
     const payload: any = {}
     const profile: any = {}
 
-    // Campos root
     if (current.email !== base.email) payload.email = current.email
     if (current.isActive !== base.isActive) payload.isActive = current.isActive
     if (!arraysEqual(current.roles, base.roles)) payload.roles = current.roles
@@ -370,20 +394,18 @@ function buildUpdatePayload(current: FlatForm, base: FlatForm) {
         payload.password = current.password
     }
 
-    // Campos de perfil
     const PROFILE_KEYS: (keyof FlatForm)[] = ['firstName', 'lastName', 'birthdate', 'phone', 'gender', 'avatarUrl', 'metadata']
     for (const key of PROFILE_KEYS) {
         if (JSON.stringify(current[key]) !== JSON.stringify(base[key])) {
             profile[key] = current[key as keyof FlatForm]
         }
     }
-
     if (Object.keys(profile).length) payload.profile = profile
 
     return payload
 }
 
-// 🧠 Payload para crear (CreateUserDto)
+/* Build CREATE payload */
 function buildCreatePayload(current: FlatForm) {
     const payload: any = {
         email: current.email,
@@ -403,6 +425,7 @@ function buildCreatePayload(current: FlatForm) {
     return payload
 }
 
+/* Save (Create or Update) */
 async function save() {
     const result = await formRef.value?.validate()
     const valid = typeof result === 'object' ? !!result.valid : !!result
@@ -419,7 +442,6 @@ async function save() {
             await usersStore.updateUser(editingId.value, payload)
             snack.message = 'Employee updated successfully.'
         } else {
-            // Crear
             const payload = buildCreatePayload(form)
             await usersStore.createUser(payload)
             snack.message = 'Employee created successfully.'
@@ -429,6 +451,24 @@ async function save() {
         await refresh(false)
     } catch (e: any) {
         alert(e?.response?.data?.message || e.message || 'Failed to save user.')
+    }
+}
+
+/* Reset password action (Edit only) */
+async function onResetPassword() {
+    if (!isEditing.value || !editingId.value) return
+    try {
+        resetLoading.value = true
+        await usersStore.updateUser(editingId.value, { password: 'secreto123' })
+        // Clear local password (UI remains disabled anyway)
+        form.password = ''
+        unlockReset.value = false
+        snack.message = 'Password reset to default successfully.'
+        snack.show = true
+    } catch (e: any) {
+        alert(e?.response?.data?.message || e.message || 'Failed to reset password.')
+    } finally {
+        resetLoading.value = false
     }
 }
 

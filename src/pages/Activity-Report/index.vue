@@ -1,548 +1,962 @@
+<!-- ActivityReport.vue -->
 <template>
-   <div class="activity-page">
-      <v-container fluid>
-         <v-row justify="center">
-            <v-col cols="12" md="10" lg="8">
-               <!-- Card principal -->
-               <v-card elevation="3" class="pa-6">
-                  <div v-if="isLoading" class="text-center my-6">
-                     <v-progress-circular indeterminate color="primary"></v-progress-circular>
-                  </div>
+   <v-container class="py-6">
+      <!-- Header -->
+      <div class="d-flex align-center justify-space-between mb-4">
+         <div class="d-flex align-center" style="gap:8px;">
+            <v-icon color="primary">mdi-timer-outline</v-icon>
+            <span class="text-h6 font-weight-semibold">Activity Report</span>
+            <v-chip size="small" class="ml-2" :color="states.clock ? 'green' : 'grey'">
+               {{ states.clock ? 'Clocked In' : 'Clocked Out' }}
+            </v-chip>
+         </div>
+         <!-- (1) Botón Refresh -->
+         <div class="d-flex align-center" style="gap:8px;">
+            <v-btn prepend-icon="mdi-refresh" variant="elevated" color="primary" size="small" @click="onRefresh">
+               Refresh
+            </v-btn>
+         </div>
+      </div>
 
-                  <div v-else class="text-center mb-8">
-                     <!-- CLOCK IN -->
-                     <v-row v-if="!activityReportStore.estados.clock" justify="center" class="mt-6">
-                        <v-col cols="auto" class="text-center cursor-pointer" @click="clockIn">
-                           <v-img src="@/assets/LogosActivityReport/clockInLogo.png" max-width="90" class="mx-auto"
-                              alt="Clock In" />
-                           <div class="mt-2 font-medium text-lg">CLOCK IN</div>
-                        </v-col>
-                     </v-row>
+      <!-- Overlay Loader (full viewport, bloquea scroll) -->
+      <v-overlay v-model="loading" class="align-center justify-center" :scrim="true" opacity="0.25"
+         scroll-strategy="block">
+         <v-progress-circular indeterminate size="48" />
+      </v-overlay>
 
-                     <!-- BOTONES PRINCIPALES -->
-                     <v-row
-                        v-else-if="activityReportStore.estados.clock && !activityReportStore.estados.biobreak && !activityReportStore.estados.lunch && !activityReportStore.estados.activity"
-                        justify="center" align="center" class="mt-6">
+      <!-- Botonera con imágenes -->
+      <v-card class="pa-4 mb-6 wide-card">
+         <div class="actions-grid">
+            <!-- CLOCK -->
+            <div v-if="!states.clock" class="action" @click="onClockIn">
+               <v-img :src="imgs.clock_in" height="92" contain />
+               <div class="action-label">CLOCK IN</div>
+            </div>
+            <div v-else-if="states.clock && !isAnySubInProgress" class="action" @click="onClockOut">
+               <v-img :src="imgs.clock_out" height="92" contain />
+               <div class="action-label">CLOCK OUT</div>
+            </div>
 
-                        <!-- Clock Out -->
-                        <v-col cols="auto" class="text-center cursor-pointer" @click="clockOut">
-                           <v-img src="@/assets/LogosActivityReport/clockOutLogo.png" width="80" class="mx-auto"
-                              alt="Clock Out" />
-                           <div class="mt-2 font-medium text-lg">CLOCK OUT</div>
-                        </v-col>
+            <!-- IN de sub-actividades -->
+            <template v-if="states.clock && !isAnySubInProgress">
+               <div class="action" @click="onSubIn('lunch')">
+                  <v-img :src="imgs.lunch_in" height="92" contain />
+                  <div class="action-label">LUNCH IN</div>
+               </div>
+               <div class="action" @click="onSubIn('bio_break')">
+                  <v-img :src="imgs.bio_break_in" height="92" contain />
+                  <div class="action-label">BIO BREAK IN</div>
+               </div>
+               <div class="action" @click="onSubIn('activity')">
+                  <v-img :src="imgs.activity_in" height="92" contain />
+                  <div class="action-label">ACTIVITY IN</div>
+               </div>
+            </template>
 
-                        <!-- Bio Break -->
-                        <v-col cols="auto" class="text-center cursor-pointer" @click="bioBreak">
-                           <v-img src="@/assets/LogosActivityReport/bioBreakLogo.png" width="80" class="mx-auto"
-                              alt="Bio Break" />
-                           <div class="mt-2 font-medium text-lg">BIO BREAK</div>
-                        </v-col>
+            <!-- OUT sub-actividad activa -->
+            <template v-if="states.clock && isAnySubInProgress">
+               <div v-if="states.lunch" class="action" @click="onSubOut('lunch')">
+                  <v-img :src="imgs.lunch_out" height="92" contain />
+                  <div class="action-label">LUNCH OUT</div>
+               </div>
+               <div v-else-if="states.bio_break" class="action" @click="onSubOut('bio_break')">
+                  <v-img :src="imgs.bio_break_out" height="92" contain />
+                  <div class="action-label">BIO BREAK OUT</div>
+               </div>
+               <div v-else-if="states.activity" class="action" @click="onSubOut('activity')">
+                  <v-img :src="imgs.activity_out" height="92" contain />
+                  <div class="action-label">ACTIVITY OUT</div>
+               </div>
+            </template>
+         </div>
+      </v-card>
 
-                        <!-- Lunch In -->
-                        <v-col cols="auto" class="text-center cursor-pointer" @click="lunchIn">
-                           <v-img src="@/assets/LogosActivityReport/lunchInLogo.png" width="80" class="mx-auto"
-                              alt="Lunch In" />
-                           <div class="mt-2 font-medium text-lg">LUNCH IN</div>
-                        </v-col>
+      <!-- Última operación / payload (solo si el flag lo permite) -->
+      <v-card v-if="isDev" class="pa-4 mb-6 wide-card">
+         <div class="d-flex align-center mb-2" style="gap:8px;">
+            <v-chip :color="lastAction?.mode === 'create' ? 'blue' : 'orange'" size="small" class="text-white">
+               {{ lastAction?.mode === 'create' ? 'CREATING' : 'UPDATING' }}
+            </v-chip>
+            <span class="font-weight-medium">{{ lastAction?.label }}</span>
+         </div>
+         <pre class="payload-pre">{{ pretty(lastPayload) }}</pre>
+      </v-card>
 
-                        <!-- Activities In -->
-                        <v-col cols="auto" class="text-center cursor-pointer" @click="activityIn">
-                           <v-img src="@/assets/LogosActivityReport/activitiesInLogo.png" width="80" class="mx-auto"
-                              alt="Activities In" />
-                           <div class="mt-2 font-medium text-lg">ACTIVITY IN</div>
-                        </v-col>
-                     </v-row>
+      <!-- Tabla -->
+      <v-card class="wide-table">
+         <v-data-table :headers="isDev ? headers : headers.filter(h => h.key !== 'action')" :items="records"
+            item-key="id" density="compact" :items-per-page="10">
+            <template #item.created_date="{ item }"><span class="nowrap">{{ item.created_date }}</span></template>
+            <template #item.created_time="{ item }"><span class="nowrap">{{ item.created_time }}</span></template>
 
-                     <!-- BACK BIO BREAK -->
-                     <div v-else-if="activityReportStore.estados.biobreak"
-                        style="display:flex; justify-content:center; gap:20px;">
-                        <div @click="endBioBreak" style="cursor:pointer;">
-                           <v-img src="@/assets/LogosActivityReport/backBioBreakLogo.png" width="100"
-                              alt="Back Bio Break" />
-                           <div style="margin-top:8px; font-weight:500;">BACK BIO BREAK</div>
-                        </div>
-                     </div>
+            <template #item.customer_name="{ item }">
+               <span class="nowrap">{{ item.customer_name || '—' }}</span>
+            </template>
 
-                     <!-- LUNCH OUT -->
-                     <div v-else-if="activityReportStore.estados.lunch"
-                        style="display:flex; justify-content:center; gap:20px;">
-                        <div @click="lunchOut" style="cursor:pointer;">
-                           <v-img src="@/assets/LogosActivityReport/lunchOutLogo.png" width="100" alt="Lunch Out" />
-                           <div style="margin-top:8px; font-weight:500;">LUNCH OUT</div>
-                        </div>
-                     </div>
+            <template #item.type_of_activity="{ item }">
+               <v-chip :color="typeChip(item).color" size="small" class="text-white"
+                  @contextmenu.prevent="openContextMenu($event, item)">
+                  {{ typeChip(item).label }}
+               </v-chip>
+            </template>
 
-                     <!-- ACTIVITIES OUT -->
-                     <div v-else-if="activityReportStore.estados.activity"
-                        style="display:flex; justify-content:center; gap:20px;">
-                        <div @click="openActivityOutDialog" style="cursor:pointer;">
-                           <v-img src="@/assets/LogosActivityReport/activitiesOutLogo.png" width="100"
-                              alt="Activities Out" />
-                           <div style="margin-top:8px; font-weight:500;">ACTIVITY OUT</div>
-                        </div>
-                     </div>
-                  </div>
+            <template #item.activity_title="{ item }">
+               <span @contextmenu.prevent="openContextMenu($event, item)">{{ item.activity_title || '—' }}</span>
+            </template>
+            <template #item.start_time="{ item }">
+               <span @contextmenu.prevent="openContextMenu($event, item)">{{ item.start_time || '—' }}</span>
+            </template>
+            <template #item.total_time="{ item }"><span>{{ item.total_time || '—' }}</span></template>
 
-                  <!-- Divider -->
-                  <v-divider class="my-3"></v-divider>
+            <template #item.activity_desc_icon="{ item }">
+               <v-btn v-if="item.activity_title || item.activity_description" variant="text" size="small" icon
+                  @click="openViewActivity(item)" :title="'Ver descripción'">
+                  <v-icon>mdi-text-box-outline</v-icon>
+               </v-btn>
+               <span v-else>—</span>
+            </template>
 
-                  <v-data-table :headers="headers" :items="activityReportStore.activityReports" item-key="uuid"
-                     class="elevation-1">
-                     <!-- DATE -->
-                     <template #item.created_date="{ item }">
-                        <div class="text-center w-[15%]">{{ item.created_date ?? '' }}</div>
-                     </template>
+            <!-- Columna Op solo en modo dev por flag -->
+            <template v-if="isDev" #item.action="{ item }">
+               <v-chip size="x-small" :color="item._op === 'create' ? 'blue' : 'orange'" class="text-white">
+                  {{ item._op }}
+               </v-chip>
+            </template>
+         </v-data-table>
+      </v-card>
 
-                     <!-- TIME -->
-                     <template #item.created_time="{ item }">
-                        <div class="text-center w-[10%]">{{ item.created_time ?? '' }}</div>
-                     </template>
+      <!-- Menú contextual: solo ACTIVITY -->
+      <div v-if="ctx.show" class="ctx-backdrop" @click="closeCtx"></div>
+      <div v-if="ctx.show" class="ctx-menu" :style="{ left: ctx.x + 'px', top: ctx.y + 'px' }">
+         <div v-if="ctx.row?.type_of_activity === 'ACTIVITY'" class="ctx-item" @click="editActivity(ctx.row!)">
+            <v-icon size="16" class="mr-2">mdi-pencil</v-icon> Edit Activity
+         </div>
+         <div v-if="ctx.row?.type_of_activity === 'ACTIVITY'" class="ctx-item" @click="confirmDelete(ctx.row!)">
+            <v-icon size="16" class="mr-2">mdi-delete</v-icon> Delete
+         </div>
+      </div>
 
-                     <!-- TYPE OF ACTIVITY -->
-                     <template #item.type_of_activity="{ item }">
-                        <div class="text-center w-[20%]">{{ item.type_of_activity ?? '' }}</div>
-                     </template>
+      <!-- Confirmación de borrado -->
+      <v-dialog v-model="deleteDlg.show" max-width="420">
+         <v-card>
+            <v-card-title class="text-subtitle-1">Delete record?</v-card-title>
+            <v-card-text>This will permanently remove the selected record.</v-card-text>
+            <v-card-actions class="justify-end">
+               <v-btn variant="text" @click="deleteDlg.show = false">Cancel</v-btn>
+               <v-btn color="error" @click="doDelete">Delete</v-btn>
+            </v-card-actions>
+         </v-card>
+      </v-dialog>
 
-                     <!-- CUSTOMER NAME -->
-                     <template #item.customer_name="{ item }">
-                        <div class="text-center w-[20%]">{{ item.customer_name ?? '' }}</div>
-                     </template>
+      <!-- Snackbar -->
+      <v-snackbar v-model="snackbar.open" :color="snackbar.color" timeout="2000">
+         {{ snackbar.text }}
+      </v-snackbar>
 
-                     <!-- DEPARTMENT -->
-                     <template #item.customer_department_name="{ item }">
-                        <div class="text-center w-[15%]">{{ item.customer_department_name ?? '' }}</div>
-                     </template>
+      <!-- DIALOG: Activity In / Finalize / Edit -->
+      <v-dialog v-model="showActivityDialog" persistent max-width="640">
+         <v-card>
+            <v-card-title class="d-flex justify-space-between">
+               <span>
+                  {{
+                     dialogMode === 'activityIn'
+                        ? 'Activity In'
+                        : dialogMode === 'activityFinalize'
+                           ? 'Finalize Activity'
+                           : 'Edit Activity'
+                  }}
+               </span>
+               <v-btn icon variant="text" @click="cancelActivityDialog"><v-icon>mdi-close</v-icon></v-btn>
+            </v-card-title>
 
-                     <!-- DESCRIPTION -->
-                     <template #item.activity_description="{ item }">
-                        <div class="text-center w-[20%]">
-                           <v-btn v-if="item.type_of_activity?.startsWith('ACTIVITY OUT') && item.activity_description"
-                              icon variant="text" color="primary" class="transition-transform hover:scale-125"
-                              @click="openDescription(item.activity_description, item.activity_title ?? '')">
-                              <v-icon>mdi-note-text</v-icon>
-                           </v-btn>
-                        </div>
-                     </template>
-
-                     <template #no-data>
-                        <div class="text-center text-grey pa-4">No records yet</div>
-                     </template>
-                  </v-data-table>
-
-
-                  <!-- Description Dialog -->
-                  <v-dialog v-model="showDescriptionDialog" max-width="400">
-                     <v-card v-if="showDescriptionDialog">
-                        <!-- Contenedor interno con padding -->
-                        <div class="p-4">
-                           <!-- Título más pequeño -->
-                           <v-card-title style="padding-left: 16px; font-size: 0.875rem; font-weight: 500;">
-                              Description
-                           </v-card-title>
-
-                           <!-- Activity / Reason -->
-                           <v-card-subtitle class="text-gray py-0 mb-1 ">
-                              {{ selectedReason }}
-                           </v-card-subtitle>
-
-                           <!-- Descripción -->
-                           <v-card-text class="text-black mt-1" style="font-size: 1.1rem;">
-                              {{ selectedDescriptionText }}
-                           </v-card-text>
-
-                        </div>
-                     </v-card>
-                  </v-dialog>
-
-
-               </v-card>
-            </v-col>
-         </v-row>
-
-         <!-- Clock Out Dialog -->
-         <v-dialog v-model="showClockOutDialog" max-width="400">
-            <v-card>
-               <v-card-title class="d-flex justify-space-between">
-                  <v-icon size="48" color="warning" class="mb-4">mdi-alert</v-icon>
-                  Confirm Clock Out
-                  <v-btn icon variant="text" density="compact" @click="showClockOutDialog = false">
-                     <v-icon>mdi-close</v-icon>
-                  </v-btn>
-               </v-card-title>
-
+            <v-form ref="activityFormRef" v-model="isActivityFormValid">
                <v-card-text>
-                  <div style="font-size: 18px; margin-bottom: 16px;">
-                     You are about to <span style="color: red; font-weight: bold;">clock out</span>
-                     and <span style="color: red; font-weight: bold;">close the day</span>, are you sure?
-                  </div>
-                  <div style="color: gray; font-size: 14px; margin-bottom: 20px;">
-                     You need to type <span style="color: red; font-weight: bold;">clock out</span> to confirm.
-                  </div>
+                  <!-- Activity In -->
+                  <template v-if="dialogMode === 'activityIn'">
+                     <v-select v-model="selectedCustomer" :items="customers" item-title="name" item-value="uuid"
+                        label="Select a Customer" :rules="[v => !!v || 'Customer is required']" return-object
+                        required />
+                     <v-select v-model="selectedDepartment" :items="departments" item-title="name" item-value="uuid"
+                        label="Select a Department" :rules="[v => !!v || 'Department is required']" return-object
+                        required />
+                  </template>
 
-                  <v-text-field v-model="clockOutReason" label="Reason" placeholder="CLOCK OUT"
-                     :input-style="{ textTransform: 'uppercase' }" />
+                  <!-- Finalize Activity -->
+                  <template v-else-if="dialogMode === 'activityFinalize'">
+                     <v-select v-model="selectedCustomer" :items="customers" item-title="name" item-value="uuid"
+                        label="Select a Customer" :rules="[v => !!v || 'Customer is required']" return-object
+                        required />
+                     <v-select v-model="selectedDepartment" :items="departments" item-title="name" item-value="uuid"
+                        label="Select a Department" :rules="[v => !!v || 'Department is required']" return-object
+                        required />
+                     <v-text-field v-model="activityTitle" label="Title" :rules="[v => !!v || 'Title is required']"
+                        class="mt-2" required />
+                     <v-textarea v-model="activityDescription" label="Description"
+                        :rules="[v => !!v || 'Description is required']" class="mt-2" required />
+                  </template>
+
+                  <!-- Edit Activity: Customer/Department siempre, Title/Description solo si estaba OUT -->
+                  <template v-else>
+                     <v-select v-model="selectedCustomer" :items="customers" item-title="name" item-value="uuid"
+                        label="Select a Customer" :rules="[v => !!v || 'Customer is required']" return-object
+                        required />
+                     <v-select v-model="selectedDepartment" :items="departments" item-title="name" item-value="uuid"
+                        label="Select a Department" :rules="[v => !!v || 'Department is required']" return-object
+                        required />
+
+                     <!-- Solo para actividades cerradas -->
+                     <v-text-field v-if="editingIsClosed" v-model="activityTitle" label="Title" class="mt-2" />
+                     <v-textarea v-if="editingIsClosed" v-model="activityDescription" label="Description"
+                        class="mt-2" />
+                  </template>
                </v-card-text>
 
                <v-card-actions class="justify-end">
-                  <v-btn color="primary" @click="confirmClockOut">YES</v-btn>
-               </v-card-actions>
-            </v-card>
-         </v-dialog>
-
-         <v-dialog v-model="showActivityOutDialog" persistent max-width="500">
-            <v-card>
-               <v-card-title class="d-flex justify-space-between">
-                  <span>Activity Out</span>
-                  <v-btn icon variant="text" @click="closeActivityOutDialog">
-                     <v-icon>mdi-close</v-icon>
+                  <v-btn color="primary" @click="
+                     dialogMode === 'activityIn'
+                        ? submitActivityIn()
+                        : dialogMode === 'activityFinalize'
+                           ? submitActivityFinalize()
+                           : submitActivityEdit()
+                     ">
+                     {{
+                        dialogMode === 'activityIn'
+                           ? 'Submit'
+                           : dialogMode === 'activityFinalize'
+                              ? 'Finalize'
+                              : 'Update'
+                     }}
                   </v-btn>
-               </v-card-title>
+               </v-card-actions>
+            </v-form>
+         </v-card>
+      </v-dialog>
 
-               <!-- FORM -->
-               <v-form v-model="isFormValid">
-                  <v-card-text>
-                     <v-select v-model="selectedCustomer" :items="customers" item-title="name" item-value="id"
-                        label="Select a Customer" :rules="[v => !!v || 'Customer is required']" return-object
-                        required></v-select>
-
-                     <v-select v-model="selectedDepartment" :items="departments" item-title="name" item-value="id"
-                        label="Select a Department" :rules="[v => !!v || 'Department is required']" return-object
-                        required></v-select>
-                     <!-- Title -->
-                     <v-text-field v-model="activityTitle" label="Title" :rules="[v => !!v || 'Title is required']"
-                        required class="mt-4"></v-text-field>
-
-                     <!-- Description -->
-                     <v-textarea v-model="activityDescription" label="Description"
-                        :rules="[v => !!v || 'Description is required']" required class="mt-2"></v-textarea>
-                  </v-card-text>
-
-                  <v-card-actions class="justify-end">
-                     <v-btn color="primary" @click="submitActivityOut">Submit</v-btn>
-                  </v-card-actions>
-               </v-form>
-            </v-card>
-         </v-dialog>
-      </v-container>
-
-   </div>
+      <!-- DIALOG: Ver Activity -->
+      <v-dialog v-model="showViewDialog" max-width="560">
+         <v-card>
+            <v-card-title class="d-flex justify-space-between">
+               <span>Activity Details</span>
+               <v-btn icon variant="text" @click="showViewDialog = false"><v-icon>mdi-close</v-icon></v-btn>
+            </v-card-title>
+            <v-card-text>
+               <div class="text-subtitle-1 font-weight-600 mb-2">{{ viewItem?.activity_title || 'Untitled' }}</div>
+               <div class="text-body-2">{{ viewItem?.activity_description || 'No description' }}</div>
+            </v-card-text>
+            <v-card-actions class="justify-end">
+               <v-btn variant="tonal" @click="showViewDialog = false">Close</v-btn>
+            </v-card-actions>
+         </v-card>
+      </v-dialog>
+   </v-container>
 </template>
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
+
+<script lang="ts" setup>
+import { reactive, ref, computed, onMounted, nextTick } from 'vue'
+import { useActivityReportStore } from '@/stores/ActivityReport/ActivityReport'
+import { useAuthStore } from '@/stores/auth/auth'
 import { useCustomersStore } from '@/stores/customers/customers'
 import { useDepartmentsStore } from '@/stores/departments/departments'
-import { useActivityReportStore, type EmployeeData } from '@/stores/ActivityReport/ActivityReport'
-import type { DataTableHeader } from 'vuetify'
 import type { ActivityReport } from '@/interfaces/ActivityReport'
-import { storeToRefs } from 'pinia'
-import { computed } from 'vue';
 
-import { useAuthStore } from '@/stores/auth/auth'
+/* Flag de entorno: controla payload y columna Op */
+const isDev = import.meta.env.VITE_FEATURE_ACTIVITY_DEV === 'true'
 
+/* ---------- Helpers Chicago TZ & diff ---------- */
+function nowChicago() {
+   const now = new Date()
+   const toTZ = (d: Date, tz: string) => new Date(d.toLocaleString('en-US', { timeZone: tz }))
+   const d = toTZ(now, 'America/Chicago')
+   const p = (n: number) => String(n).padStart(2, '0')
+   return {
+      date: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`,
+      time: `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+   }
+}
+function diffHHMMSS(start: string, end: string) {
+   const N = (s: string) => s.split(':').map(Number)
+   const [sh, sm, ss] = N(start); const [eh, em, es] = N(end)
+   const s = sh * 3600 + sm * 60 + ss, e = eh * 3600 + em * 60 + es, d = Math.max(0, e - s)
+   const p = (n: number) => String(n).padStart(2, '0')
+   return `${p(Math.floor(d / 3600))}:${p(Math.floor((d % 3600) / 60))}:${p(d % 60)}`
+}
+
+/* ---------- Imagenes ---------- */
+const imgs = {
+   clock_in: new URL('@/assets/ActivityReport/clock_in.png', import.meta.url).href,
+   clock_out: new URL('@/assets/ActivityReport/clock_out.png', import.meta.url).href,
+   lunch_in: new URL('@/assets/ActivityReport/lunch_in.png', import.meta.url).href,
+   lunch_out: new URL('@/assets/ActivityReport/lunch_out.png', import.meta.url).href,
+   bio_break_in: new URL('@/assets/ActivityReport/bio_break_in.png', import.meta.url).href,
+   bio_break_out: new URL('@/assets/ActivityReport/bio_break_out.png', import.meta.url).href,
+   activity_in: new URL('@/assets/ActivityReport/activity_in.png', import.meta.url).href,
+   activity_out: new URL('@/assets/ActivityReport/activity_out.png', import.meta.url).href,
+}
+
+/* ---------- Stores ---------- */
+const ar = useActivityReportStore()
 const auth = useAuthStore()
-
-// ------------------------------
-// Headers tabla
-// ------------------------------
-const headers: DataTableHeader[] = [
-   { title: 'Date', key: 'created_date', align: 'center' },
-   { title: 'Time', key: 'created_time', align: 'center' },
-   { title: 'Type of Activity', key: 'type_of_activity', align: 'center' },
-   { title: 'Customer Name', key: 'customer_name', align: 'center' },
-   { title: 'Department', key: 'customer_department_name', align: 'center' },
-   { title: 'Description', key: 'activity_description', align: 'center' },
-]
-
-// ------------------------------
-// Stores
-// ------------------------------
-const activityReportStore = useActivityReportStore()
 const customersStore = useCustomersStore()
 const departmentsStore = useDepartmentsStore()
-const { customers } = storeToRefs(customersStore)
-const { departments } = storeToRefs(departmentsStore)
-const { estados } = storeToRefs(activityReportStore) // toggles centralizado
 
-// ------------------------------
-// Computed para template
-// ------------------------------
-const isClock = computed({
-   get: () => estados.value.clock,
-   set: v => activityReportStore.estados.clock = v
-})
-const isLunch = computed({
-   get: () => estados.value.lunch,
-   set: v => activityReportStore.estados.lunch = v
-})
-const isBio = computed({
-   get: () => estados.value.biobreak,
-   set: v => activityReportStore.estados.biobreak = v
-})
-const isActivity = computed({
-   get: () => estados.value.activity,
-   set: v => activityReportStore.estados.activity = v
-})
+/* Catálogos desde stores */
+const customers = computed(() => customersStore.customers)
+const departments = computed(() => departmentsStore.departments)
 
-// ------------------------------
-// Employee temporal
-// ------------------------------
-/* const employee_data = {
-   employee_number: "NOVA123",
-   employee_name: "Test",
-   employee_last_name: "Test"
-} */
-let employee_data = {} as EmployeeData;
+/* ---------- Estado / UI ---------- */
+type SubType = 'lunch' | 'bio_break' | 'activity'
+type States = { clock: boolean; lunch: boolean; bio_break: boolean; activity: boolean }
 
+// Alias directo al estado del store
+const states: States = ar.states
 
+type Row = {
+   id: string
+   created_date: string
+   created_time: string
+   type_of_activity: string
+   customer_uuid?: string
+   customer_code?: string
+   customer_name?: string
+   customer_description?: string
+   customer_department_name?: string
+   activity_title?: string
+   activity_description?: string
+   start_time?: string
+   end_time?: string
+   total_time?: string
+   _op: 'create' | 'update'
+}
+const records = ref<Row[]>([])
 
-// ------------------------------
-// Función para actualizar toggles
-// ------------------------------
-/* function toggleActivity(type: 'CLOCK' | 'LUNCH' | 'BIO BREAK' | 'ACTIVITY', isIn: boolean) {
-   switch (type) {
-      case 'CLOCK': activityReportStore.estados.clock = isIn; break
-      case 'LUNCH': activityReportStore.estados.lunch = isIn; break
-      case 'BIO BREAK': activityReportStore.estados.biobreak = isIn; break
-      case 'ACTIVITY': activityReportStore.estados.activity = isIn; break
-   }
-} */
+const isAnySubInProgress = computed(() => states.lunch || states.bio_break || states.activity)
 
-// ------------------------------
-// onMounted - carga inicial
-// ------------------------------
-const isLoading = ref(true)
+const snackbar = reactive({ open: false, text: '', color: 'success' as 'success' | 'warning' | 'error' | 'info' })
+const loading = ref(false)
+const lastAction = ref<{ mode: 'create' | 'update'; label: string } | null>(null)
+const lastPayload = ref<any>(null)
+function showSnack(text: string, color: typeof snackbar.color = 'success') { snackbar.text = text; snackbar.color = color; snackbar.open = true }
+function logPayload(mode: 'create' | 'update', label: string, payload: any) {
+   lastAction.value = { mode, label }
+   lastPayload.value = payload
+   console.log(mode === 'create' ? 'Create →' : 'Update →', label, payload)
+}
+
+/* ---------- Tabla: headers ---------- */
+type VHeader = { title: string; key: string; sortable?: boolean }
+const headers: VHeader[] = [
+   { title: 'Fecha', key: 'created_date' },
+   { title: 'Hora', key: 'created_time' },
+   { title: 'Tipo', key: 'type_of_activity' },
+   { title: 'Start', key: 'start_time' },
+   { title: 'End', key: 'end_time' },
+   { title: 'Total', key: 'total_time' },
+   { title: 'Customer', key: 'customer_name' },
+   { title: 'Department', key: 'customer_department_name' },
+   { title: 'Activity Desc.', key: 'activity_desc_icon', sortable: false },
+   { title: 'Op', key: 'action' }, // se oculta con el flag
+]
+
+/* ---------- Dialog ---------- */
+type DialogMode = 'activityIn' | 'activityFinalize' | 'edit'
+const dialogMode = ref<DialogMode>('activityIn')
+const showActivityDialog = ref(false)
+const activityFormRef = ref()
+const isActivityFormValid = ref(false)
+const selectedCustomer = ref<any | null>(null)
+const selectedDepartment = ref<any | null>(null)
+const activityTitle = ref(''); const activityDescription = ref('')
+const editingId = ref<string | null>(null)
+const editingIsClosed = ref(false) // 👈 flag: la activity que edito estaba OUT
+let clockOutAfterFinalize = false
+let finalizeFromActivityOut = false
+
+/* ---------- Mounted ---------- */
 onMounted(async () => {
-   employee_data = {
-      employee_number: auth.user?.employee_number || '',
-      employee_name: auth.user?.firstName || '',
-      employee_last_name: auth.user?.lastName || '',
-   };
-
-   isLoading.value = true
-   await customersStore.loadData()
-   await departmentsStore.loadData()
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-   await activityReportStore.loadLastLog(employee_data.employee_number)
-
-   if (activityReportStore.lastReport && activityReportStore.lastReport.estados) {
-      const t = activityReportStore.lastReport.estados
-      activityReportStore.estados.clock = !!t.clock
-      activityReportStore.estados.lunch = !!t.lunch
-      activityReportStore.estados.biobreak = !!t.biobreak
-      activityReportStore.estados.activity = !!t.activity
-
-      //console.log("💡 Toggles cargados desde lastReport:", activityReportStore.estados)
-   } else {
-      //console.log("💡 No hay lastReport, todos los toggles false")
+   try {
+      loading.value = true
+      auth.applyAuthHeader() // asegura Authorization para axios global
+      // carga catálogos
+      await Promise.all([
+         customersStore.loadData(),
+         departmentsStore.loadData(),
+      ])
+      await onRefresh()
+   } finally {
+      loading.value = false
    }
-
-   isLoading.value = false
 })
-// ------------------------------
-// Reactive states
-// ------------------------------
 
-const onBreak = ref(false)
-const onLunch = ref(false)
-const onActivity = ref(false)
-const breakType = ref('') // 'bio' o 'lunch'
-const showClockOutDialog = ref(false)
-const clockOutReason = ref('')
-const showActivityOutDialog = ref(false)
-const activityTitle = ref('')
-const activityDescription = ref('')
-const activityErrors = ref({ title: false, description: false })
-const showDescriptionDialog = ref(false)
-const selectedDescriptionText = ref('')
-const selectedReason = ref('')
-const selectedCustomer = ref<any>(null)
-const selectedDepartment = ref<any>(null)
-const isFormValid = ref(false)
+/* ---------- (1) REFRESH ---------- */
+async function onRefresh() {
+   try {
+      loading.value = true
+      auth.applyAuthHeader()
 
-// CLOCK IN
-const clockIn = async () => {
-   // Actualizamos toggle
-   activityReportStore.estados.clock = true
+      const employeeNumber =
+         auth.user?.employee_number ||
+         ar.employee_data?.employee_number ||
+         ''
 
+      if (!employeeNumber) {
+         // sin usuario, forzar vista inicial
+         hardResetToClockInView()
+         return
+      }
 
-   const payload = activityReportStore.buildPayload("CLOCK IN");
-   //console.log("⏱ Clock In - Payload a enviar:", payload)
+      await ar.loadLastLog(employeeNumber)
+      await ar.loadTodayLogs(employeeNumber)
 
-   const newReport = await activityReportStore.addItem(payload)
-   //console.log("✅ Clock In - Registro recibido del backend:", newReport)
+      records.value = normalizeAndSort((ar.activityReports || []).map(mapReportToRow))
 
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-
-   // 📥 Log del estado actualizado de la tabla
-   //console.log("📋 Tabla actualizada:", activityReportStore.activityReports)
+      if (records.value.length === 0) {
+         hardResetToClockInView()   // ← muestra sólo CLOCK IN
+      } else {
+         recomputeStatesFromRecords()
+      }
+   } catch (e) {
+      console.warn('No se pudo refrescar:', e)
+      hardResetToClockInView()
+   } finally {
+      loading.value = false
+      await nextTick()
+   }
 }
 
-// CLOCK OUT
-const clockOut = () => {
-   showClockOutDialog.value = true
+/* ---------- Abrir/cerrar diálogos ---------- */
+function openActivityDialog(mode: DialogMode) {
+   dialogMode.value = mode
+   if (mode === 'activityIn') {
+      selectedCustomer.value = customers.value[0] ?? null
+      selectedDepartment.value = departments.value[0] ?? null
+      activityTitle.value = ''
+      activityDescription.value = ''
+   } else if (mode === 'activityFinalize') {
+      prefillFinalizeCustomerDept()
+      activityTitle.value = ''
+      activityDescription.value = ''
+   }
+   showActivityDialog.value = true
+}
+function prefillFinalizeCustomerDept() {
+   const row = records.value.find(r => r.type_of_activity === 'ACTIVITY' && (!r.end_time || r.end_time === '00:00:00'))
+   if (row) {
+      selectedCustomer.value = customers.value.find(c => c.uuid === row.customer_uuid) ?? customers.value[0] ?? null
+      selectedDepartment.value = departments.value.find(d => d.name === row.customer_department_name) ?? departments.value[0] ?? null
+   } else {
+      selectedCustomer.value = customers.value[0] ?? null
+      selectedDepartment.value = departments.value[0] ?? null
+   }
+}
+function cancelActivityDialog() {
+   showActivityDialog.value = false
+   editingId.value = null
+   editingIsClosed.value = false
+   clockOutAfterFinalize = false
+   finalizeFromActivityOut = false
 }
 
-const confirmClockOut = async () => {
-   if (clockOutReason.value.trim().toUpperCase() !== "CLOCK OUT") {
-      alert('You must type "CLOCK OUT" to confirm.')
+/* ---------- Ver Activity ---------- */
+const showViewDialog = ref(false)
+const viewItem = ref<Row | null>(null)
+function openViewActivity(item: Row) { viewItem.value = item; showViewDialog.value = true }
+
+/* ---------- Menú contextual (solo ACTIVITY) ---------- */
+const ctx = reactive<{ show: boolean; x: number; y: number; row: Row | null }>({ show: false, x: 0, y: 0, row: null })
+function openContextMenu(e: MouseEvent, row: Row) {
+   if (row.type_of_activity !== 'ACTIVITY') return
+   ctx.show = true; ctx.x = e.clientX; ctx.y = e.clientY; ctx.row = row
+}
+function closeCtx() { ctx.show = false; ctx.row = null }
+
+/* ---------- Delete ---------- */
+const deleteDlg = reactive<{ show: boolean; id: string | null }>({ show: false, id: null })
+function confirmDelete(row: Row) { deleteDlg.show = true; deleteDlg.id = row.id; closeCtx() }
+
+/* ---------- Acciones ---------- */
+async function onClockIn() {
+   try {
+      loading.value = true
+      const t = nowChicago()
+
+      // UI inmediata
+      ar.states.clock = true
+      ar.states.lunch = false
+      ar.states.bio_break = false
+      ar.states.activity = false
+
+      const payload = buildPayloadStore('CLOCK IN', { start_time: t.time, end_time: t.time, total_time: '00:00:00' })
+      logPayload('create', 'CLOCK IN', payload)
+
+      const created = await ar.addItem(payload as ActivityReport)
+
+      records.value.unshift(rowFromCreate(mapReportToRow(created), 'CLOCK IN'))
+      records.value = normalizeAndSort(records.value)
+
+      recomputeStatesFromRecords()
+      showSnack('Clock In registered', 'success')
+   } catch { showSnack('Error registering Clock In', 'error') }
+   finally { loading.value = false; await nextTick() }
+}
+
+async function onClockOut() {
+   try {
+      const openActivity = records.value.find(r => r.type_of_activity === 'ACTIVITY' && (!r.end_time || r.end_time === '00:00:00'))
+      if (openActivity) {
+         clockOutAfterFinalize = true
+         openActivityDialog('activityFinalize')
+         return
+      }
+
+      loading.value = true
+      const t = nowChicago()
+
+      const payload = buildPayloadStore('CLOCK OUT', { start_time: t.time, end_time: t.time, total_time: '00:00:00' })
+      logPayload('create', 'CLOCK OUT', payload)
+
+      const created = await ar.addItem(payload as ActivityReport)
+      records.value.unshift(rowFromCreate(mapReportToRow(created), 'CLOCK OUT'))
+      records.value = normalizeAndSort(records.value)
+
+      ar.states.lunch = false
+      ar.states.bio_break = false
+      ar.states.activity = false
+      ar.states.clock = false
+
+      recomputeStatesFromRecords()
+      showSnack('Clock Out registered', 'success')
+   } catch { showSnack('Error registering Clock Out', 'error') }
+   finally { loading.value = false; await nextTick() }
+}
+
+async function onSubIn(kind: SubType) {
+   if (kind === 'activity') { openActivityDialog('activityIn'); return }
+   try {
+      loading.value = true
+      const t = nowChicago()
+
+      if (kind === 'lunch') { ar.states.bio_break = false; ar.states.activity = false; ar.states.lunch = true }
+      if (kind === 'bio_break') { ar.states.lunch = false; ar.states.activity = false; ar.states.bio_break = true }
+
+      const label = labelFromKind(kind)
+      const payload = buildPayloadStore(label, { start_time: t.time, end_time: '00:00:00', total_time: '00:00:00' })
+      logPayload('create', `${label} IN`, payload)
+
+      const created = await ar.addItem(payload as ActivityReport)
+      records.value.unshift({
+         id: (created as any).uuid ?? (created as any).id,
+         created_date: created.created_date!, created_time: created.created_time!,
+         type_of_activity: label, start_time: t.time, end_time: '00:00:00', total_time: '00:00:00', _op: 'create'
+      })
+      records.value = normalizeAndSort(records.value)
+
+      recomputeStatesFromRecords()
+      showSnack(`${label} In created`, 'success')
+   } catch { showSnack('Error creating record', 'error') }
+   finally { loading.value = false; await nextTick() }
+}
+
+async function submitActivityIn() {
+   // @ts-ignore
+   const ok = await activityFormRef.value?.validate(); if (!ok?.valid) return
+   try {
+      loading.value = true
+      const t = nowChicago()
+      const cust = selectedCustomer.value!, dept = selectedDepartment.value!
+
+      ar.states.activity = true
+      ar.states.lunch = false
+      ar.states.bio_break = false
+
+      const payload = buildPayloadStore('ACTIVITY', {
+         // customer_uuid: cust.uuid, // descomenta si tu backend lo requiere
+         customer_code: cust.code, customer_name: cust.name, customer_description: cust.description,
+         customer_department_name: dept.name, start_time: t.time, end_time: '00:00:00', total_time: '00:00:00'
+      })
+      logPayload('create', 'ACTIVITY IN', payload)
+
+      const created = await ar.addItem(payload as ActivityReport)
+      const id = (created as any).uuid || (created as any).id
+
+      records.value.unshift({
+         id,
+         created_date: created.created_date!, created_time: created.created_time!,
+         type_of_activity: 'ACTIVITY',
+         customer_uuid: cust.uuid, customer_code: cust.code, customer_name: cust.name, customer_description: cust.description,
+         customer_department_name: dept.name,
+         start_time: t.time, end_time: '00:00:00', total_time: '00:00:00', _op: 'create'
+      })
+      records.value = normalizeAndSort(records.value)
+
+      recomputeStatesFromRecords()
+      showSnack('Activity In created', 'success')
+      showActivityDialog.value = false
+   } catch { showSnack('Error creating activity', 'error') }
+   finally { loading.value = false; await nextTick() }
+}
+
+async function submitActivityFinalize() {
+   // @ts-ignore
+   const ok = await activityFormRef.value?.validate(); if (!ok?.valid) return
+   const openRow = records.value.find(r => r.type_of_activity === 'ACTIVITY' && (!r.end_time || r.end_time === '00:00:00'))
+   if (!openRow) { showSnack('There is no open Activity', 'warning'); return }
+   try {
+      loading.value = true
+      const t = nowChicago()
+      const total = diffHHMMSS(openRow.start_time || t.time, t.time)
+      const cust = selectedCustomer.value!, dept = selectedDepartment.value!
+
+      const payloadUpdate: Partial<ActivityReport> = {
+         customer_uuid: cust.uuid, customer_code: cust.code, customer_name: cust.name,
+         customer_description: cust.description, customer_department_name: dept.name,
+         activity_title: activityTitle.value, activity_description: activityDescription.value,
+         end_time: t.time, total_time: total,
+         states: { clock: states.clock, lunch: states.lunch, bio_break: states.bio_break, activity: false }
+      }
+      logPayload('update', 'ACTIVITY FINALIZE', { id: openRow.id, ...payloadUpdate })
+
+      const updated = await ar.updateItem(openRow.id, payloadUpdate)
+
+      const idx = records.value.findIndex(r => r.id === openRow.id)
+      if (idx !== -1) {
+         records.value[idx] = {
+            ...records.value[idx],
+            customer_uuid: updated.customer_uuid, customer_code: updated.customer_code, customer_name: updated.customer_name,
+            customer_description: updated.customer_description, customer_department_name: updated.customer_department_name,
+            activity_title: updated.activity_title, activity_description: updated.activity_description,
+            end_time: updated.end_time, total_time: updated.total_time, _op: 'update'
+         }
+      }
+      records.value = normalizeAndSort(records.value)
+
+      ar.states.activity = false
+      recomputeStatesFromRecords()
+
+      showActivityDialog.value = false
+      showSnack('Activity finished', 'success')
+
+      if (finalizeFromActivityOut) { finalizeFromActivityOut = false; return }
+      if (clockOutAfterFinalize) { clockOutAfterFinalize = false; await onClockOut() }
+   } catch { showSnack('Error when completing Activity', 'error') }
+   finally { loading.value = false; await nextTick() }
+}
+
+async function submitActivityEdit() {
+   // @ts-ignore
+   const ok = await activityFormRef.value?.validate(); if (!ok?.valid || !editingId.value) return
+   try {
+      loading.value = true
+      const cust = selectedCustomer.value!, dept = selectedDepartment.value!
+
+      // payload base (siempre customer/department); agrega title/desc solo si estaba OUT
+      const payload: Partial<ActivityReport> = {
+         customer_uuid: cust.uuid,
+         customer_code: cust.code,
+         customer_name: cust.name,
+         customer_description: cust.description,
+         customer_department_name: dept.name,
+         ...(editingIsClosed.value
+            ? {
+               activity_title: activityTitle.value ?? '',
+               activity_description: activityDescription.value ?? '',
+            }
+            : {}),
+         states: { clock: states.clock, lunch: states.lunch, bio_break: states.bio_break, activity: states.activity }
+      }
+      logPayload('update', 'ACTIVITY EDIT', { id: editingId.value, ...payload })
+
+      const updated = await ar.updateItem(editingId.value, payload)
+
+      const idx = records.value.findIndex(r => r.id === editingId.value)
+      if (idx !== -1) {
+         records.value[idx] = {
+            ...records.value[idx],
+            customer_uuid: updated.customer_uuid, customer_code: updated.customer_code, customer_name: updated.customer_name,
+            customer_description: updated.customer_description, customer_department_name: updated.customer_department_name,
+            ...(editingIsClosed.value
+               ? {
+                  activity_title: updated.activity_title,
+                  activity_description: updated.activity_description,
+               }
+               : {}),
+            _op: 'update'
+         }
+      }
+      records.value = normalizeAndSort(records.value)
+
+      recomputeStatesFromRecords()
+      showSnack('Activity updated', 'success')
+      showActivityDialog.value = false
+      editingId.value = null
+      editingIsClosed.value = false
+   } catch { showSnack('Error updating activity', 'error') }
+   finally { loading.value = false; await nextTick() }
+}
+
+async function onSubOut(kind: SubType) {
+   if (kind === 'activity') { finalizeFromActivityOut = true; openActivityDialog('activityFinalize'); return }
+   const label = labelFromKind(kind)
+   const pend = records.value.find(r => r.type_of_activity === label && (!r.end_time || r.end_time === '00:00:00'))
+   if (!pend) return
+
+   try {
+      loading.value = true
+      const t = nowChicago()
+      const total = diffHHMMSS(pend.start_time || t.time, t.time)
+
+      if (kind === 'lunch') ar.states.lunch = false
+      if (kind === 'bio_break') ar.states.bio_break = false
+
+      const payload: Partial<ActivityReport> = {
+         end_time: t.time, total_time: total,
+         states: { clock: states.clock, lunch: states.lunch, bio_break: states.bio_break, activity: states.activity }
+      }
+      logPayload('update', `${label} OUT`, { id: pend.id, ...payload })
+
+      const updated = await ar.updateItem(pend.id, payload)
+      const idx = records.value.findIndex(r => r.id === pend.id)
+      if (idx !== -1) records.value[idx] = { ...records.value[idx], end_time: updated.end_time, total_time: updated.total_time, _op: 'update' }
+      records.value = normalizeAndSort(records.value)
+
+      recomputeStatesFromRecords()
+      showSnack(`${label} Out updated`, 'success')
+   } catch { showSnack('Error updating', 'error') }
+   finally { loading.value = false; await nextTick() }
+}
+
+/* ---------- Edit/Borrar ---------- */
+function editActivity(row: Row) {
+   if (row.type_of_activity !== 'ACTIVITY') return
+   editingId.value = row.id
+
+   // cerrada si tiene end_time y no es '00:00:00'
+   const isClosed = !!row.end_time && row.end_time !== '00:00:00'
+   editingIsClosed.value = isClosed
+
+   selectedCustomer.value = customers.value.find(c => c.uuid === row.customer_uuid) ?? customers.value[0] ?? null
+   selectedDepartment.value = departments.value.find(d => d.name === row.customer_department_name) ?? departments.value[0] ?? null
+
+   // Si está cerrada, precargar título/desc; si no, limpiar
+   activityTitle.value = isClosed ? (row.activity_title || '') : ''
+   activityDescription.value = isClosed ? (row.activity_description || '') : ''
+
+   openActivityDialog('edit')
+   closeCtx()
+}
+function canDelete(row: Row | null | undefined) { return !!row && row.type_of_activity === 'ACTIVITY' }
+async function doDelete() {
+   if (!deleteDlg.id) return
+   try {
+      const row = records.value.find(r => r.id === deleteDlg.id)
+      if (!canDelete(row)) { showSnack('You can only delete Activities.', 'warning'); deleteDlg.show = false; deleteDlg.id = null; return }
+      loading.value = true
+      await ar.removeItem(deleteDlg.id)
+      records.value = records.value.filter(r => r.id !== deleteDlg.id)
+
+      recomputeStatesFromRecords()
+      showSnack('Record deleted', 'success')
+   } catch { showSnack('Error deleting record', 'error') }
+   finally { deleteDlg.show = false; deleteDlg.id = null; loading.value = false; await nextTick() }
+}
+
+/* ---------- Utils ---------- */
+function pad2NumStr(s: string | undefined) {
+   const v = (s == null ? '' : String(s)).replace(/[^0-9]/g, '')
+   return v.length === 1 ? ('0' + v) : (v || '00')
+}
+function toTsNum(r: Row) {
+   const date = r.created_date || '0000-00-00'
+   const time = r.created_time || '00:00:00'
+   const dParts = date.split('-')
+   const tParts = time.split(':')
+   const YYYY = (dParts[0] || '0000').replace(/[^0-9]/g, '').slice(0, 4) || '0000'
+   const MM = pad2NumStr(dParts[1])
+   const DD = pad2NumStr(dParts[2])
+   const HH = pad2NumStr(tParts[0])
+   const MIN = pad2NumStr(tParts[1])
+   const SS = pad2NumStr(tParts[2])
+   return Number(YYYY + MM + DD + HH + MIN + SS)
+}
+function normalizeAndSort(list: Row[]): Row[] { return [...list].sort((a, b) => toTsNum(b) - toTsNum(a)) }
+
+function mapReportToRow(r: any): Row {
+   const now = nowChicago()
+   return {
+      id: r.uuid ?? r.id,
+      created_date: r.created_date ?? now.date,
+      created_time: r.created_time ?? now.time,
+      type_of_activity: r.type_of_activity,
+      customer_uuid: r.customer_uuid,
+      customer_code: r.customer_code,
+      customer_name: r.customer_name,
+      customer_description: r.customer_description,
+      customer_department_name: r.customer_department_name,
+      activity_title: r.activity_title,
+      activity_description: r.activity_description,
+      start_time: r.start_time,
+      end_time: r.end_time,
+      total_time: r.total_time,
+      _op: 'create',
+   }
+}
+function rowFromCreate(createdRow: Row, type: string): Row { return { ...createdRow, type_of_activity: type, _op: 'create' } }
+function labelFromKind(kind: SubType) { return kind === 'lunch' ? 'LUNCH' : kind === 'bio_break' ? 'BIO BREAK' : 'ACTIVITY' }
+function typeChip(row: Row) {
+   let label = row.type_of_activity, color = 'default'
+   if (row.type_of_activity === 'CLOCK IN') { color = 'green'; label = 'CLOCK IN' }
+   else if (row.type_of_activity === 'CLOCK OUT') { color = 'red'; label = 'CLOCK OUT' }
+   else if (['LUNCH', 'BIO BREAK', 'ACTIVITY'].includes(row.type_of_activity)) {
+      const isIn = !row.end_time || row.end_time === '00:00:00'
+      color = isIn ? 'green' : 'red'
+      label = `${row.type_of_activity} ${isIn ? 'IN' : 'OUT'}`
+   }
+   return { label, color }
+}
+function pretty(obj: any) { return obj ? JSON.stringify(obj, null, 2) : '' }
+
+/* Estado inicial explícito: muestra CLOCK IN (clock=false) */
+function forceInitialStates() {
+   ar.states.clock = false
+   ar.states.lunch = false
+   ar.states.bio_break = false
+   ar.states.activity = false
+}
+
+/* Reset DURO cuando no hay datos (refresh/table vacía) */
+function hardResetToClockInView() {
+   records.value = []
+   forceInitialStates()
+}
+
+/** Recalcular estados a partir de registros en memoria */
+function recomputeStatesFromRecords() {
+   ar.states.lunch = false
+   ar.states.bio_break = false
+   ar.states.activity = false
+
+   records.value = normalizeAndSort(records.value)
+   if (records.value.length === 0) {
+      forceInitialStates()
       return
    }
 
-   // Reset todos los toggles
-   activityReportStore.estados.clock = false
-   activityReportStore.estados.lunch = false
-   activityReportStore.estados.biobreak = false
-   activityReportStore.estados.activity = false
+   const firstClock = records.value.find(r => r.type_of_activity === 'CLOCK IN' || r.type_of_activity === 'CLOCK OUT')
+   const isClockedIn = firstClock?.type_of_activity === 'CLOCK IN'
+   ar.states.clock = !!isClockedIn
 
-   const payload = activityReportStore.buildPayload("CLOCK OUT")
-   await activityReportStore.addItem(payload)
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
+   const openActivity = records.value.find(r => r.type_of_activity === 'ACTIVITY' && (!r.end_time || r.end_time === '00:00:00'))
+   const openLunch = records.value.find(r => r.type_of_activity === 'LUNCH' && (!r.end_time || r.end_time === '00:00:00'))
+   const openBio = records.value.find(r => r.type_of_activity === 'BIO BREAK' && (!r.end_time || r.end_time === '00:00:00'))
 
-   showClockOutDialog.value = false
-   clockOutReason.value = ""
+   ar.states.activity = !!openActivity
+   ar.states.lunch = !!openLunch
+   ar.states.bio_break = !!openBio
 }
 
-// BIO BREAK
-const bioBreak = async () => {
-   activityReportStore.estados.biobreak = true
-   breakType.value = 'bio'
-
-   const payload = activityReportStore.buildPayload("BIO BREAK")
-   console.log("⏱ BIO BREAK IN - Payload a enviar:", payload)
-
-   const newReport = await activityReportStore.addItem(payload)
-   //console.log("Bio break in - Registro recibido del backend:", newReport)
-
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-
-}
-
-const endBioBreak = async () => {
-   activityReportStore.estados.biobreak = false
-   breakType.value = ''
-
-   const payload = activityReportStore.buildPayload("BACK BIO BREAK")
-   console.log("⏱ BACK BREAK  - Payload a enviar:", payload)
-
-   const newReport = await activityReportStore.addItem(payload)
-   //console.log("BACK bio break  - Registro recibido del backend:", newReport)
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-}
-
-// LUNCH
-const lunchIn = async () => {
-   activityReportStore.estados.lunch = true
-   breakType.value = 'lunch'
-
-   const payload = activityReportStore.buildPayload("LUNCH IN")
-   //console.log("⏱ LUNCH IN  - Payload a enviar:", payload)
-
-   const newReport = await activityReportStore.addItem(payload)
-   //console.log("LUNCH IN  - Registro recibido del backend:", newReport)
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-}
-
-const lunchOut = async () => {
-   activityReportStore.estados.lunch = false
-   breakType.value = ''
-
-   const payload = activityReportStore.buildPayload("LUNCH OUT")
-   //console.log("⏱ LUNCH OUT  - Payload a enviar:", payload)
-   const newReport = await activityReportStore.addItem(payload)
-   //console.log("LUNCH OUT  - Registro recibido del backend:", newReport)
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-}
-
-// ACTIVITY IN
-const activityIn = async () => {
-   activityReportStore.estados.activity = true
-   onActivity.value = true
-
-   const payload = activityReportStore.buildPayload("ACTIVITY IN")
-   //console.log("⏱ ACTIVITY IN  - Payload a enviar:", payload)
-   const newReport = await activityReportStore.addItem(payload)
-   //console.log("ACTIVITY IN  - Registro recibido del backend:", newReport)
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-}
-
-// ACTIVITY OUT
-const openActivityOutDialog = () => {
-   showActivityOutDialog.value = true
-   activityTitle.value = ''
-   activityDescription.value = ''
-   activityErrors.value.title = false
-   activityErrors.value.description = false
-}
-
-const closeActivityOutDialog = () => {
-   showActivityOutDialog.value = false
-}
-
-const submitActivityOut = async () => {
-   if (!isFormValid.value) return
-   activityReportStore.estados.activity = false
-   const payload = activityReportStore.buildPayload("ACTIVITY OUT", {
-      customer_uuid: selectedCustomer.value?.uuid,
-      customer_code: selectedCustomer.value?.code,
-      customer_name: selectedCustomer.value?.name,
-      customer_description: selectedCustomer.value?.description,
-      customer_department_name: selectedDepartment.value?.name,
-      activity_title: activityTitle.value,
-      activity_description: activityDescription.value
-   },
+/* ---------- Payload builder ---------- */
+function buildPayloadStore(type_of_activity: string, extra: Record<string, any>) {
+   return ar.buildPayload(
+      type_of_activity as any,
       {
-         employee_number: employee_data.employee_number,
-         employee_name: employee_data.employee_name,
-         employee_last_name: employee_data.employee_last_name
-      })
-
-
-   //console.log("⏱ ACTIVITY OUT  - Payload a enviar:", payload)
-   const newReport = await activityReportStore.addItem(payload)
-   //console.log("ACTIVITY OUT  - Registro recibido del backend:", newReport)
-   await activityReportStore.loadTodayLogs(employee_data.employee_number)
-
-   // Reset UI
-   showActivityOutDialog.value = false
-   onActivity.value = false
-   onBreak.value = false
-   onLunch.value = false
-   activityTitle.value = ""
-   activityDescription.value = ""
-   selectedCustomer.value = null
-   selectedDepartment.value = null
-}
-
-
-// Description Dialog
-const openDescription = (desc: string, reason: string) => {
-   selectedDescriptionText.value = desc
-   selectedReason.value = reason
-   showDescriptionDialog.value = true
-}
-const closeDescription = () => {
-   showDescriptionDialog.value = false
-   selectedDescriptionText.value = ''
+         customer_uuid: extra.customer_uuid,
+         customer_code: extra.customer_code,
+         customer_name: extra.customer_name,
+         customer_description: extra.customer_description,
+         customer_department_name: extra.customer_department_name,
+         activity_description: extra.activity_description,
+         activity_title: extra.activity_title,
+         start_time: extra.start_time,
+         end_time: extra.end_time,
+         total_time: extra.total_time,
+      }
+   )
 }
 </script>
 
 <style scoped>
-html,
-body {
-   height: 100%;
-   margin: 0;
+.actions-grid {
+   display: grid;
+   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+   gap: 16px;
 }
 
-body {
-   .activity-page {
-      min-height: 100vh;
-      /* que abarque toda la pantalla aunque no haya contenido */
-      background:
-         rgba(255, 255, 255, 0.9)
-         /* capa blanca semitransparente */
-         url('@/assets/backgrounds/backgroundActivityReport.webp') center/cover no-repeat fixed;
-      background-blend-mode: lighten;
-      /* hace que la imagen quede como marca de agua */
-   }
+.action {
+   cursor: pointer;
+   border-radius: 14px;
+   padding: 12px;
+   text-align: center;
+   border: 1px solid #eee;
+   transition: transform .1s, box-shadow .1s;
+}
+
+.action:hover {
+   transform: translateY(-2px);
+   box-shadow: 0 6px 18px rgba(0, 0, 0, .06);
+}
+
+.action-label {
+   margin-top: 8px;
+   font-weight: 600;
+   font-size: .9rem;
+}
+
+.wide-card {
+   max-width: 1200px;
+   margin: 0 auto;
+}
+
+.wide-table {
+   max-width: 1700px;
+   width: 100%;
+   margin: 0 auto;
+}
+
+.nowrap {
+   white-space: nowrap;
+}
+
+.payload-pre {
+   font-family: ui-monospace, Menlo, Consolas, monospace;
+   font-size: 12px;
+   background: #0f172a;
+   color: #e2e8f0;
+   border-radius: 10px;
+   padding: 12px;
+   white-space: pre-wrap;
+}
+
+/* Menú contextual */
+.ctx-backdrop {
+   position: fixed;
+   inset: 0;
+   background: transparent;
+   z-index: 2500;
+}
+
+.ctx-menu {
+   position: fixed;
+   z-index: 2501;
+   min-width: 200px;
+   background: #fff;
+   border: 1px solid #e5e7eb;
+   border-radius: 10px;
+   box-shadow: 0 10px 30px rgba(0, 0, 0, .12);
+   padding: 6px;
+}
+
+.ctx-item {
+   display: flex;
+   align-items: center;
+   padding: 8px 10px;
+   cursor: pointer;
+   border-radius: 8px;
+}
+
+.ctx-item:hover {
+   background: #f5f7fb;
+}
+
+.wide-table :deep(.v-data-table) {
+   width: 100%;
 }
 </style>

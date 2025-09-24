@@ -38,10 +38,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
-import  GenericTable  from '@/components/GenericTable/GenericTable.vue'
+import GenericTable from '@/components/GenericTable/GenericTable.vue'
 import GenericFormDialog from '@/components/GenericFormDialog/GenericFormDialog.vue'
+import { definePage } from 'vue-router/auto'
+import { useCustomersStore } from '@/stores/customers/customers'
 
-import { useCustomersStore } from '@/stores/customers/customers' 
+definePage({ meta: { requiresAuth: true, roles: ['admin'] } })
+
+
 const customersStore = useCustomersStore()
 const { customers } = storeToRefs(customersStore)
 
@@ -88,19 +92,19 @@ const saveItem = (item: any) => {
 
 
    const payload = {
-      uuid: item.uuid ,
+      uuid: item.uuid,
       code: item.code,
       name: item.name,
       description: item.description
    }
-//console.log('Payload to save:', payload)
+   //console.log('Payload to save:', payload)
    if (item.uuid) {
-      customersStore.updateItem( item.uuid, payload)
+      customersStore.updateItem(item.uuid, payload)
    } else {
       payload.uuid = crypto.randomUUID()
       customersStore.addItem(payload)
    }
-    //console.log('Payload to save:', payload) 
+   //console.log('Payload to save:', payload) 
 
    dialogVisible.value = false
 }
@@ -108,28 +112,28 @@ const saveItem = (item: any) => {
 
 // Abrir confirmación de borrado
 const openDeleteDialog = (uuid: string | undefined) => {
-  if (uuid) {
-    deleteUuid.value = uuid
-    deleteDialog.value = true
-  } else {
-    alert('Invalid UUID for deletion')
-  }
+   if (uuid) {
+      deleteUuid.value = uuid
+      deleteDialog.value = true
+   } else {
+      alert('Invalid UUID for deletion')
+   }
 }
 
 // Confirm deletion
 const confirmDelete = async () => {
-  if (deleteUuid.value) {
-    try {
-   
-      await customersStore.deleteItem(deleteUuid.value)
+   if (deleteUuid.value) {
+      try {
 
-    
-      deleteDialog.value = false
-      deleteUuid.value = null
-    } catch (error) {
-      console.error('Error borrando department:', error)
-      alert('Failed to delete department')
-    }
-  }
+         await customersStore.deleteItem(deleteUuid.value)
+
+
+         deleteDialog.value = false
+         deleteUuid.value = null
+      } catch (error) {
+         console.error('Error borrando department:', error)
+         alert('Failed to delete department')
+      }
+   }
 }
 </script>

@@ -1,0 +1,15 @@
+/* Aplica el zoom global cuando <html> lleva la clase app-zoom */
+html.app-zoom body {
+  /* Chrome/Edge/Opera */
+  zoom: var(--app-zoom, 1);
+}
+
+/* Fallback para navegadores sin 'zoom' (Firefox y otros) */
+@supports not (zoom: 1) {
+  html.app-zoom #app {
+    transform: scale(var(--app-zoom, 1));
+    transform-origin: top left;
+    /* Evita scroll horizontal al escalar */
+    width: calc(100% / var(--app-zoom, 1));
+  }
+}

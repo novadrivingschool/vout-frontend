@@ -43,6 +43,9 @@ import { storeToRefs } from 'pinia'
 import GenericTable from '@/components/GenericTable/GenericTable.vue'
 import GenericFormDialog from '@/components/GenericFormDialog/GenericFormDialog.vue'
 import { useDepartmentsStore } from '@/stores/departments/departments'
+import { definePage } from 'vue-router/auto'
+
+definePage({ meta: { requiresAuth: true, roles: ['admin'] } })
 
 const departmentsStore = useDepartmentsStore()
 const { departments } = storeToRefs(departmentsStore) // reactivo

@@ -9,43 +9,55 @@ import { createVuetify } from 'vuetify'
 import { VCalendar } from 'vuetify/labs/VCalendar'
 import { VTimePicker } from 'vuetify/labs/VTimePicker'
 
-// Configuración con temas personalizados
 export default createVuetify({
+  // (2) Densidad global (compacta) + ajustes por componente
+  defaults: {
+    global: { density: 'compact' },
+    VBtn: { density: 'comfortable' },       // botones un pelín más altos
+    VTextField: { density: 'compact' },
+    VSelect: { density: 'compact' },
+    VTextarea: { density: 'compact' },
+    VDataTable: { density: 'compact' },
+    VListItem: { density: 'compact' },
+    VToolbar: { density: 'comfortable' },
+    VChip: { density: 'comfortable' },
+    VCard: { rounded: 'lg' },
+  },
+
+  // Tu tema tal cual
   theme: {
     defaultTheme: 'light',
     themes: {
       light: {
         dark: false,
         colors: {
-          background: '#F4F5F7',     // Fondo general claro pero suave
-          surface: '#F9FAFB',        // Cards / contenedores (sin blanco puro)
-          primary: '#3B82F6',        // Azul moderno
-          secondary: '#6B7280',      // Gris medio neutro
-          accent: '#A5B4FC',         // Azul lavanda claro
-          error: '#EF4444',          // Rojo controlado
-          warning: '#FACC15',        // Amarillo pastel
-          success: '#10B981',        // Verde suave
-          info: '#60A5FA',           // Azul cielo
+          background: '#F4F5F7',
+          surface: '#F9FAFB',
+          primary: '#3B82F6',
+          secondary: '#6B7280',
+          accent: '#A5B4FC',
+          error: '#EF4444',
+          warning: '#FACC15',
+          success: '#10B981',
+          info: '#60A5FA',
         },
       },
       dark: {
         dark: true,
         colors: {
-          background: '#0D1117',     // Negro azulado (GitHub dark base)
-          surface: '#161B22',        // Cards / paneles
-          primary: '#3B82F6',        // Azul moderno (acción principal)
-          secondary: '#8B949E',      // Gris claro frío
-          accent: '#60A5FA',         // Azul cielo tenue (hover, interacción)
-          error: '#EF4444',          // Rojo plano, serio
-          warning: '#F59E0B',        // Mostaza desaturada
-          success: '#3BA55D',        // Verde oscuro contenido
-          info: '#93C5FD',           // Azul suave pastel para info
+          background: '#0D1117',
+          surface: '#161B22',
+          primary: '#3B82F6',
+          secondary: '#8B949E',
+          accent: '#60A5FA',
+          error: '#EF4444',
+          warning: '#F59E0B',
+          success: '#3BA55D',
+          info: '#93C5FD',
         },
       }
     },
   },
-  components: {
-    VCalendar,
-    VTimePicker
-  },
+
+  components: { VCalendar, VTimePicker },
 })
