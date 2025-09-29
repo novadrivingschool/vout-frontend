@@ -136,14 +136,23 @@
          </div>
       </div>
 
-      <!-- Confirmación de borrado -->
-      <v-dialog v-model="deleteDlg.show" max-width="420">
+      <!-- Confirmación de borrado con frase -->
+      <v-dialog v-model="deleteDlg.show" max-width="480">
          <v-card>
             <v-card-title class="text-subtitle-1">Delete record?</v-card-title>
-            <v-card-text>This will permanently remove the selected record.</v-card-text>
+            <v-card-text>
+               <p class="mb-3">
+                  This will permanently remove the selected record.
+               </p>
+               <p class="mb-2">
+                  To confirm, please type <strong>“{{ deleteDlg.requiredPhrase }}”</strong> below:
+               </p>
+               <v-text-field v-model="deleteDlg.confirmText" :label="`Type: ${deleteDlg.requiredPhrase}`"
+                  variant="outlined" density="comfortable" autofocus />
+            </v-card-text>
             <v-card-actions class="justify-end">
                <v-btn variant="text" @click="deleteDlg.show = false">Cancel</v-btn>
-               <v-btn color="error" @click="doDelete">Delete</v-btn>
+               <v-btn color="error" :disabled="!canConfirmDelete" @click="doDelete">Delete</v-btn>
             </v-card-actions>
          </v-card>
       </v-dialog>
@@ -195,7 +204,7 @@
                         :rules="[v => !!v || 'Description is required']" class="mt-2" required />
                   </template>
 
-                  <!-- Edit Activity: Customer/Department siempre, Title/Description solo si estaba OUT -->
+                  <!-- Edit Activity -->
                   <template v-else>
                      <v-select v-model="selectedCustomer" :items="customers" item-title="name" item-value="uuid"
                         label="Select a Customer" :rules="[v => !!v || 'Customer is required']" return-object
@@ -375,8 +384,7 @@ let finalizeFromActivityOut = false
 onMounted(async () => {
    try {
       loading.value = true
-      auth.applyAuthHeader() // asegura Authorization para axios global
-      // carga catálogos
+      auth.applyAuthHeader()
       await Promise.all([
          customersStore.loadData(),
          departmentsStore.loadData(),
@@ -470,8 +478,20 @@ function openContextMenu(e: MouseEvent, row: Row) {
 function closeCtx() { ctx.show = false; ctx.row = null }
 
 /* ---------- Delete ---------- */
-const deleteDlg = reactive<{ show: boolean; id: string | null }>({ show: false, id: null })
-function confirmDelete(row: Row) { deleteDlg.show = true; deleteDlg.id = row.id; closeCtx() }
+const deleteDlg = reactive<{ show: boolean; id: string | null; confirmText: string; requiredPhrase: string }>({
+   show: false,
+   id: null,
+   confirmText: '',
+   requiredPhrase: 'delete permanently',
+})
+const canConfirmDelete = computed(() => deleteDlg.confirmText.trim().toLowerCase() === deleteDlg.requiredPhrase)
+
+function confirmDelete(row: Row) {
+   deleteDlg.show = true
+   deleteDlg.id = row.id
+   deleteDlg.confirmText = ''
+   closeCtx()
+}
 
 /* ---------- Acciones ---------- */
 async function onClockIn() {
@@ -485,7 +505,8 @@ async function onClockIn() {
       ar.states.bio_break = false
       ar.states.activity = false
 
-      const payload = buildPayloadStore('CLOCK IN', { start_time: t.time, end_time: t.time, total_time: '00:00:00' })
+      // 👇 SIN end_time ni total_time
+      const payload = buildPayloadStore('CLOCK IN', { start_time: t.time })
       logPayload('create', 'CLOCK IN', payload)
 
       const created = await ar.addItem(payload as ActivityReport)
@@ -511,7 +532,8 @@ async function onClockOut() {
       loading.value = true
       const t = nowChicago()
 
-      const payload = buildPayloadStore('CLOCK OUT', { start_time: t.time, end_time: t.time, total_time: '00:00:00' })
+      // 👇 SIN end_time ni total_time
+      const payload = buildPayloadStore('CLOCK OUT', { start_time: t.time })
       logPayload('create', 'CLOCK OUT', payload)
 
       const created = await ar.addItem(payload as ActivityReport)
@@ -569,7 +591,7 @@ async function submitActivityIn() {
       ar.states.bio_break = false
 
       const payload = buildPayloadStore('ACTIVITY', {
-         // customer_uuid: cust.uuid, // descomenta si tu backend lo requiere
+         // customer_uuid: cust.uuid,
          customer_code: cust.code, customer_name: cust.name, customer_description: cust.description,
          customer_department_name: dept.name, start_time: t.time, end_time: '00:00:00', total_time: '00:00:00'
       })
@@ -748,7 +770,16 @@ async function doDelete() {
    if (!deleteDlg.id) return
    try {
       const row = records.value.find(r => r.id === deleteDlg.id)
-      if (!canDelete(row)) { showSnack('You can only delete Activities.', 'warning'); deleteDlg.show = false; deleteDlg.id = null; return }
+      if (!canDelete(row)) {
+         showSnack('You can only delete Activities.', 'warning')
+         deleteDlg.show = false; deleteDlg.id = null
+         return
+      }
+      if (!canConfirmDelete.value) {
+         showSnack('Please type the confirmation phrase.', 'warning')
+         return
+      }
+
       loading.value = true
       await ar.removeItem(deleteDlg.id)
       records.value = records.value.filter(r => r.id !== deleteDlg.id)
@@ -756,7 +787,13 @@ async function doDelete() {
       recomputeStatesFromRecords()
       showSnack('Record deleted', 'success')
    } catch { showSnack('Error deleting record', 'error') }
-   finally { deleteDlg.show = false; deleteDlg.id = null; loading.value = false; await nextTick() }
+   finally {
+      deleteDlg.show = false
+      deleteDlg.id = null
+      deleteDlg.confirmText = ''
+      loading.value = false
+      await nextTick()
+   }
 }
 
 /* ---------- Utils ---------- */
@@ -855,21 +892,21 @@ function recomputeStatesFromRecords() {
 
 /* ---------- Payload builder ---------- */
 function buildPayloadStore(type_of_activity: string, extra: Record<string, any>) {
-   return ar.buildPayload(
-      type_of_activity as any,
-      {
-         customer_uuid: extra.customer_uuid,
-         customer_code: extra.customer_code,
-         customer_name: extra.customer_name,
-         customer_description: extra.customer_description,
-         customer_department_name: extra.customer_department_name,
-         activity_description: extra.activity_description,
-         activity_title: extra.activity_title,
-         start_time: extra.start_time,
-         end_time: extra.end_time,
-         total_time: extra.total_time,
-      }
-   )
+   // Construye SOLO con los campos presentes en "extra" para evitar mandar end/total cuando no se requiere.
+   const base: Record<string, any> = {
+      customer_uuid: extra.customer_uuid,
+      customer_code: extra.customer_code,
+      customer_name: extra.customer_name,
+      customer_description: extra.customer_description,
+      customer_department_name: extra.customer_department_name,
+      activity_description: extra.activity_description,
+      activity_title: extra.activity_title,
+      start_time: extra.start_time,
+   }
+   if (extra.end_time !== undefined) base.end_time = extra.end_time
+   if (extra.total_time !== undefined) base.total_time = extra.total_time
+
+   return ar.buildPayload(type_of_activity as any, base)
 }
 </script>
 

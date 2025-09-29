@@ -45,11 +45,13 @@
                                     <v-text-field v-bind="props" readonly v-model="filtersLocal.dateFrom"
                                         label="Start date" placeholder="YYYY-MM-DD" variant="outlined" density="compact"
                                         hide-details="auto" prepend-inner-icon="mdi-calendar" clearable
+                                        :error="!!dateFromError" :error-messages="dateFromError"
                                         @click="menuFrom = true" @click:clear="clearFrom" />
                                 </template>
                                 <v-card class="picker-card" elevation="10" rounded="lg">
                                     <v-date-picker class="pretty-picker" color="primary" show-adjacent-months
-                                        v-model="pickerFrom" :title="''" @update:model-value="onPickFromAndClose" />
+                                        v-model="pickerFrom" :title="''" :max="filtersLocal.dateTo || undefined"
+                                        @update:model-value="onPickFromAndClose" />
                                 </v-card>
                             </v-menu>
                         </v-col>
@@ -62,11 +64,13 @@
                                     <v-text-field v-bind="props" readonly v-model="filtersLocal.dateTo" label="End date"
                                         placeholder="YYYY-MM-DD" variant="outlined" density="compact"
                                         hide-details="auto" prepend-inner-icon="mdi-calendar" clearable
-                                        @click="menuTo = true" @click:clear="clearTo" />
+                                        :error="!!dateToError" :error-messages="dateToError" @click="menuTo = true"
+                                        @click:clear="clearTo" />
                                 </template>
                                 <v-card class="picker-card" elevation="10" rounded="lg">
                                     <v-date-picker class="pretty-picker" color="primary" show-adjacent-months
-                                        v-model="pickerTo" :title="''" @update:model-value="onPickToAndClose" />
+                                        v-model="pickerTo" :title="''" :min="filtersLocal.dateFrom || undefined"
+                                        @update:model-value="onPickToAndClose" />
                                 </v-card>
                             </v-menu>
                         </v-col>
@@ -76,7 +80,7 @@
                             <v-select v-model="filtersLocal.staffIds" :items="staffOptions" item-title="label"
                                 item-value="employee_number" label="Staff (multiple)" multiple chips closable-chips
                                 variant="outlined" density="compact" hide-details="auto"
-                                prepend-inner-icon="mdi-account-multiple" />
+                                prepend-inner-icon="mdi-account-multiple" clearable />
                         </v-col>
 
                         <!-- Customers (multiple) -->
@@ -84,15 +88,15 @@
                             <v-select v-model="filtersLocal.customerUuids" :items="customers" item-title="name"
                                 item-value="uuid" label="Customers (multiple)" multiple chips closable-chips
                                 variant="outlined" density="compact" hide-details="auto"
-                                prepend-inner-icon="mdi-office-building" />
+                                prepend-inner-icon="mdi-office-building" clearable />
                         </v-col>
 
                         <!-- Departments (multiple) -> name -->
                         <v-col cols="12" md="6">
                             <v-select v-model="filtersLocal.departmentUuids" :items="departments" item-title="name"
                                 item-value="name" label="Departments (multiple)" multiple chips closable-chips
-                                variant="outlined" density="compact" hide-details="auto"
-                                prepend-inner-icon="mdi-domain" />
+                                variant="outlined" density="compact" hide-details="auto" prepend-inner-icon="mdi-domain"
+                                clearable />
                         </v-col>
                     </v-row>
 
@@ -102,7 +106,8 @@
                             Reset
                         </v-btn>
 
-                        <v-btn color="primary" :loading="admin.loading" @click="onApplyFilters">
+                        <v-btn color="primary" :loading="admin.loading" :disabled="!isDateRangeValid || admin.loading"
+                            @click="onApplyFilters">
                             <v-icon start>mdi-check</v-icon>
                             Apply
                         </v-btn>
@@ -158,12 +163,6 @@
                         {{ typeChip(item).label }}
                     </v-chip>
                 </template>
-                <!-- Type -->
-                <!-- <template #item.type_of_activity="{ item }">
-                    <v-chip :color="typeChip(item).color" size="small" class="text-white" variant="flat">
-                        {{ typeChip(item).label }}
-                    </v-chip>
-                </template> -->
 
                 <!-- Activity detail icon SOLO si es ACTIVITY -->
                 <template #item.activity="{ item }">
@@ -203,6 +202,11 @@
                         <v-icon v-else size="16">mdi-domain</v-icon>
                         <span class="font-weight-medium">{{ item.groupLabel }}</span>
                     </div>
+                </template>
+
+                <!-- Total por grupo -->
+                <template #item.total_time_group="{ item }">
+                    <span class="text-no-wrap">{{ item.total_time_group || '00:00:00' }}</span>
                 </template>
 
                 <template #no-data>
@@ -273,12 +277,6 @@
                             </v-chip>
                         </template>
 
-                        <!-- <template #item.type_of_activity="{ item }">
-                            <v-chip :color="typeChip(item).color" size="small" class="text-white" variant="flat">
-                                {{ typeChip(item).label }}
-                            </v-chip>
-                        </template> -->
-
                         <!-- Activity detail icon SOLO si es ACTIVITY -->
                         <template #item.activity="{ item }">
                             <template v-if="String(item.type_of_activity).toUpperCase() === 'ACTIVITY'">
@@ -312,7 +310,7 @@
                         <v-icon>mdi-information-outline</v-icon>
                         <span class="text-subtitle-1 font-weight-medium">{{ selectedActivity?.activity_title ||
                             'Activity'
-                        }}</span>
+                            }}</span>
                     </div>
                     <v-btn icon variant="text" @click="activityDialogOpen = false"><v-icon>mdi-close</v-icon></v-btn>
                 </v-card-title>
@@ -360,6 +358,7 @@ interface GroupRow {
     groupKey: string
     groupLabel: string
     count: number
+    total_time_group: string // ⬅ NEW: total HH:MM:SS por grupo
 }
 
 /* Catalogs */
@@ -368,14 +367,22 @@ const staffOptions = computed(() => {
     const toLabel = (u: any) => [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email || u.id
     const getEmpNum = (u: any) =>
         u.employee_number ?? u.employeeNumber ?? u.employee_data?.employee_number ?? u.profile?.employee_number ?? null
-    return users.map(u => ({ label: toLabel(u), employee_number: getEmpNum(u) })).filter(u => !!u.employee_number)
+    return users
+        .map(u => ({ label: toLabel(u), employee_number: getEmpNum(u) }))
+        .filter(u => !!u.employee_number)
 })
 const customers = computed(() => customersStore.customers)
 const departments = computed(() => departmentsStore.departments)
 
 /* Local filters */
 type MaybeString = string | null
-const filtersLocal = reactive<{ dateFrom: MaybeString; dateTo: MaybeString; staffIds: string[]; customerUuids: string[]; departmentUuids: string[] }>({
+const filtersLocal = reactive<{
+    dateFrom: MaybeString
+    dateTo: MaybeString
+    staffIds: string[]
+    customerUuids: string[]
+    departmentUuids: string[]
+}>({
     dateFrom: admin.filters.dateFrom ?? null,
     dateTo: admin.filters.dateTo ?? null,
     staffIds: [...admin.filters.staffIds],
@@ -391,22 +398,65 @@ const pickerTo = ref<MaybeString>(filtersLocal.dateTo)
 function toISO(v: any): MaybeString {
     if (!v) return null
     if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return v
-    const d = new Date(v); if (isNaN(d.getTime())) return null
+    const d = new Date(v)
+    if (isNaN(d.getTime())) return null
     const p = (n: number) => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
-function onPickFrom(v: any) { const iso = toISO(v); pickerFrom.value = iso; filtersLocal.dateFrom = iso }
-function onPickTo(v: any) { const iso = toISO(v); pickerTo.value = iso; filtersLocal.dateTo = iso }
-function onPickFromAndClose(v: any) { onPickFrom(v); menuFrom.value = false }
-function onPickToAndClose(v: any) { onPickTo(v); menuTo.value = false }
-function clearFrom() { pickerFrom.value = null; filtersLocal.dateFrom = null }
-function clearTo() { pickerTo.value = null; filtersLocal.dateTo = null }
+function onPickFrom(v: any) {
+    const iso = toISO(v)
+    pickerFrom.value = iso
+    filtersLocal.dateFrom = iso
+}
+function onPickTo(v: any) {
+    const iso = toISO(v)
+    pickerTo.value = iso
+    filtersLocal.dateTo = iso
+}
+function onPickFromAndClose(v: any) {
+    onPickFrom(v)
+    menuFrom.value = false
+}
+function onPickToAndClose(v: any) {
+    onPickTo(v)
+    menuTo.value = false
+}
+function clearFrom() {
+    pickerFrom.value = null
+    filtersLocal.dateFrom = null
+}
+function clearTo() {
+    pickerTo.value = null
+    filtersLocal.dateTo = null
+}
+
+/* ==== Validación de rango de fechas ==== */
+const isDateRangeValid = computed(() => {
+    const a = filtersLocal.dateFrom
+    const b = filtersLocal.dateTo
+    if (!a || !b) return true // se permite incompleto
+    return a <= b
+})
+const dateFromError = computed(() => {
+    if (!filtersLocal.dateFrom || !filtersLocal.dateTo) return ''
+    return filtersLocal.dateFrom > filtersLocal.dateTo ? 'Start date cannot be after End date' : ''
+})
+const dateToError = computed(() => {
+    if (!filtersLocal.dateFrom || !filtersLocal.dateTo) return ''
+    return filtersLocal.dateTo < filtersLocal.dateFrom ? 'End date cannot be before Start date' : ''
+})
 
 /* Headers — plano */
-type Header<T> = { title: string; key: keyof T | string; sortable?: boolean; width?: string | number; align?: 'start' | 'end' | 'center' }
+type Header<T> = {
+    title: string
+    key: keyof T | string
+    sortable?: boolean
+    width?: string | number
+    align?: 'start' | 'end' | 'center'
+}
 const headersFlat: ReadonlyArray<Header<AdminRow>> = [
     { title: 'Activity', key: 'activity', sortable: false, width: 76, align: 'center' },
-    //{ title: 'Time', key: 'created_time', sortable: true, width: 100 },
+    // { title: 'Time', key: 'created_time', sortable: true, width: 100 },
     { title: 'Staff', key: 'userName', sortable: true, width: 220 },
     { title: 'Type', key: 'type_of_activity', sortable: true, width: 120 },
     { title: 'Date', key: 'created_date', sortable: true, width: 120 },
@@ -417,17 +467,43 @@ const headersFlat: ReadonlyArray<Header<AdminRow>> = [
     { title: 'Department', key: 'customer_department_name', sortable: true, width: 220 },
 ]
 
-/* Headers — grupos (sin Latest; primera col es abrir listado) */
-const headersGrouped: ReadonlyArray<{ title: string; key: string; width?: number | string; sortable?: boolean; align?: 'start' | 'center' | 'end' }> = [
-    { title: '', key: 'open', width: 56, sortable: false, align: 'center' },
-    { title: 'Group', key: 'groupLabel', sortable: true },
-    { title: 'Count', key: 'count', sortable: true, width: 100, align: 'end' },
-]
+/* Headers — grupos (con Total agregado) */
+const headersGrouped: ReadonlyArray<{
+    title: string
+    key: string
+    width?: number | string
+    sortable?: boolean
+    align?: 'start' | 'center' | 'end'
+}> = [
+        { title: '', key: 'open', width: 56, sortable: false, align: 'center' },
+        { title: 'Group', key: 'groupLabel', sortable: true },
+        { title: 'Count', key: 'count', sortable: true, width: 100, align: 'end' },
+        { title: 'Total', key: 'total_time_group', sortable: false, width: 120, align: 'end' }, // ⬅ NEW
+    ]
 
 /* Items — plano */
 const rowsFlat = computed<AdminRow[]>(() => admin.items)
 
-/* Deriva filas de grupos (staff -> solo nombre) */
+/* Utils de tiempo HH:MM:SS */
+function parseSec(hms?: string | null): number {
+    if (!hms) return 0
+    const m = String(hms).match(/^(\d{1,2}):([0-5]\d):([0-5]\d)$/)
+    if (!m) return 0
+    const h = Number(m[1])
+    const mi = Number(m[2])
+    const s = Number(m[3])
+    return h * 3600 + mi * 60 + s
+}
+function fmtHMS(sec: number): string {
+    if (sec <= 0) return '00:00:00'
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    const s = sec % 60
+    const p = (n: number) => String(n).padStart(2, '0')
+    return `${p(h)}:${p(m)}:${p(s)}`
+}
+
+/* Deriva filas de grupos (staff -> solo nombre) + total por grupo */
 const groupRows = computed<GroupRow[]>(() => {
     if (!admin.isGrouped || !admin.grouped) return []
     const out: GroupRow[] = []
@@ -443,7 +519,10 @@ const groupRows = computed<GroupRow[]>(() => {
         } else if (admin.groupBy === 'department') {
             label = first.customer_department_name || k
         }
-        out.push({ groupKey: k, groupLabel: label, count: arr.length })
+
+        // suma segura de total_time del grupo
+        const totalSeconds = (arr as any[]).reduce((acc, r) => acc + parseSec(r.total_time), 0)
+        out.push({ groupKey: k, groupLabel: label, count: arr.length, total_time_group: fmtHMS(totalSeconds) })
     }
     return out
 })
@@ -471,8 +550,8 @@ function openGroup(groupKey: string) {
 /* Headers e items del listado en diálogo de grupo */
 const dialogHeaders = [
     { title: 'Activity', key: 'activity', width: 76 },
-    //{ title: 'Time', key: 'created_time', width: 100 },
-    //{ title: 'Staff', key: 'userName', width: 220 },
+    // { title: 'Time', key: 'created_time', width: 100 },
+    { title: 'Staff', key: 'userName', width: 220 },
     { title: 'Type', key: 'type_of_activity', width: 120 },
     { title: 'Date', key: 'created_date', width: 120 },
     { title: 'Start', key: 'start_time', width: 110 },
@@ -546,6 +625,7 @@ function onResetFilters() {
     pickerTo.value = filtersLocal.dateTo
 }
 function onApplyFilters() {
+    if (!isDateRangeValid.value) return
     admin.setFilters({
         dateFrom: filtersLocal.dateFrom,
         dateTo: filtersLocal.dateTo,
@@ -556,7 +636,9 @@ function onApplyFilters() {
     admin.page = 1
     admin.search()
 }
-function onRefresh() { admin.search() }
+function onRefresh() {
+    admin.search()
+}
 function onExport() {
     const payload = buildExportPayloadFromLocal()
     admin.setFilters({ ...payload.filters })
@@ -581,7 +663,9 @@ function onSortChange(s: any) {
 }
 
 /* Tabla events (grupos) */
-function noop() { /* no-op */ }
+function noop() {
+    /* no-op */
+}
 function onGroupPerPageChange(n: number) {
     admin.setPerPage(n)
     admin.setPage(1)
@@ -592,7 +676,7 @@ function typeChip(row: AdminRow) {
     const t = String(row.type_of_activity || '').toUpperCase().trim()
     const isOpen = !row.end_time || row.end_time === '00:00:00'
 
-    const IN = 'success'  // ✅ usa tokens del tema
+    const IN = 'success'
     const OUT = 'error'
 
     if (t === 'CLOCK IN') return { label: 'CLOCK IN', color: IN }
@@ -602,22 +686,13 @@ function typeChip(row: AdminRow) {
     if (t === 'BIO BREAK') return { label: `BIO BREAK ${isOpen ? 'IN' : 'OUT'}`, color: isOpen ? IN : OUT }
     if (t === 'ACTIVITY') return { label: `ACTIVITY ${isOpen ? 'IN' : 'OUT'}`, color: isOpen ? IN : OUT }
 
-    // fallback tonal
     return { label: t || '—', color: IN }
 }
-/* function typeChip(row: AdminRow) {
-    const t = row.type_of_activity
-    const isOpen = !row.end_time || row.end_time === '00:00:00'
-    if (t === 'CLOCK IN') return { label: 'CLOCK IN', color: 'green' }
-    if (t === 'CLOCK OUT') return { label: 'CLOCK OUT', color: 'red' }
-    if (t === 'LUNCH') return { label: `LUNCH ${isOpen ? 'IN' : 'OUT'}`, color: isOpen ? 'green' : 'red' }
-    if (t === 'BIO BREAK') return { label: `BIO BREAK ${isOpen ? 'IN' : 'OUT'}`, color: isOpen ? 'green' : 'red' }
-    if (t === 'ACTIVITY') return { label: `ACTIVITY ${isOpen ? 'IN' : 'OUT'}`, color: isOpen ? 'green' : 'red' }
-    return { label: String(t), color: 'primary' }
-} */
 
 /* Helpers */
-function pretty(obj: any) { return obj ? JSON.stringify(obj, null, 2) : '' }
+function pretty(obj: any) {
+    return obj ? JSON.stringify(obj, null, 2) : ''
+}
 
 /* Init: carga HOY agrupado por STAFF (dateFrom=dateTo=hoy y staffIds=all) */
 onMounted(async () => {
